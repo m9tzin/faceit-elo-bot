@@ -8,7 +8,6 @@ A simple Express.js service that fetches and displays a FACEIT player's CS2 ELO 
 - **3 commands:** ELO, full stats, and match streak
 - Built-in 30-second caching to avoid rate limiting
 - Health check endpoint for uptime monitoring
-- Ready for free deployment on Render
 - Works with Nightbot, StreamElements, and other Twitch bots
 
 ## Quick Start
@@ -59,21 +58,51 @@ curl http://localhost:3000/streak
 # Response: Últimas 10: W W L W L W W W L W
 ```
 
-## Deploy on Render
+## Deployment
 
-1. Push your code to GitHub
-2. Go to [Render Dashboard](https://dashboard.render.com/)
-3. Click **"New +"** → **"Web Service"**
-4. Connect your GitHub repository
-5. Configure:
+This service can be deployed on any platform that supports Node.js. Here are some popular options:
+
+### General Deployment Steps
+
+1. Push your code to a Git repository (GitHub, GitLab, etc.)
+2. Create a new web service on your chosen platform
+3. Connect your repository
+4. Configure:
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
-6. Add Environment Variables:
-   - `FACEIT_KEY` = your API key
+5. Add Environment Variables:
+   - `FACEIT_KEY` = your FACEIT API key
    - `PLAYER_NICKNAME` = your FACEIT nickname
-7. Deploy and copy your service URL
+   - `PORT` = server port (optional, defaults to 3000)
+6. Deploy and copy your service URL
 
-**Note:** Render's free tier sleeps after 15 minutes of inactivity. Use a service like [UptimeRobot](https://uptimerobot.com/) to ping the `/health` endpoint every 5 minutes to keep it awake.
+### Platform Examples
+
+**Render:**
+- Free tier available
+- Note: Free tier sleeps after 15 minutes of inactivity. Use a service like [UptimeRobot](https://uptimerobot.com/) to ping the `/health` endpoint every 5 minutes to keep it awake.
+
+**Railway:**
+- Simple deployment with GitHub integration
+- Free tier available with usage limits
+
+**Heroku:**
+- Classic platform with easy Git-based deployment
+- Free tier discontinued, paid plans available
+
+**Vercel / Netlify:**
+- Great for serverless deployments
+- Free tier available
+
+**DigitalOcean / AWS / Google Cloud:**
+- Full control over infrastructure
+- Various pricing options
+
+**Self-hosted (VPS):**
+- Deploy on your own server
+- Full control and customization
+
+Choose the platform that best fits your needs!
 
 ## Twitch Integration
 
@@ -81,22 +110,26 @@ Add commands in your Twitch chat:
 
 ### Nightbot
 
+Replace `YOUR_SERVICE_URL` with your deployed service URL:
+
 ```bash
-!addcom !elo $(urlfetch https://your-app.onrender.com/elo)
-!addcom !streak $(urlfetch https://your-app.onrender.com/streak)
+!addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo)
+!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak)
 
 # Stats can search any player
-!addcom !stats $(urlfetch https://your-app.onrender.com/stats?player=$(1))
+!addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
 ```
 
 ### StreamElements
 
+Replace `YOUR_SERVICE_URL` with your deployed service URL:
+
 ```bash
-!command add !elo $(urlfetch https://your-app.onrender.com/elo)
-!command add !streak $(urlfetch https://your-app.onrender.com/streak)
+!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo)
+!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak)
 
 # Stats can search any player
-!command add !stats $(urlfetch https://your-app.onrender.com/stats?player=${1})
+!command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${1})
 ```
 
 ### Example Usage
@@ -125,7 +158,7 @@ Returns the current CS2 ELO rating for the default player.
 
 **Example:**
 ```bash
-curl https://your-app.onrender.com/elo
+curl https://YOUR_SERVICE_URL/elo
 # 2150
 ```
 
@@ -148,14 +181,14 @@ Returns comprehensive player statistics. Supports searching any player via query
 **Examples:**
 ```bash
 # Default player
-curl https://your-app.onrender.com/stats
+curl https://YOUR_SERVICE_URL/stats
 # togs: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
 
 # Search any player (case-insensitive)
-curl https://your-app.onrender.com/stats?player=s1mple
+curl https://YOUR_SERVICE_URL/stats?player=s1mple
 # s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 
-curl https://your-app.onrender.com/stats?player=S1MPLE
+curl https://YOUR_SERVICE_URL/stats?player=S1MPLE
 # s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 ```
 
@@ -166,7 +199,7 @@ Returns the last 10 match results (W = Win, L = Loss) for the default player.
 
 **Example:**
 ```bash
-curl https://your-app.onrender.com/streak
+curl https://YOUR_SERVICE_URL/streak
 # Últimas 10: W L W W W L W L W W
 ```
 
