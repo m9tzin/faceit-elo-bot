@@ -5,7 +5,7 @@ const app = express();
 
 // Configuration
 const FACEIT_KEY = process.env.FACEIT_KEY;
-const PLAYER_NICKNAME = process.env.PLAYER_NICKNAME || "togs";
+const PLAYER_NICKNAME = process.env.PLAYER_NICKNAME || "togs" // .env PLAYER_NICKNAME;
 const CACHE_TIME = 30 * 1000; // 30 segundos
 
 // Cache separado para cada endpoint
@@ -16,14 +16,12 @@ let cache = {
   playerId: null
 };
 
-// Helper function to get player ID
-async function getPlayerId() {
-  if (cache.playerId) {
-    return cache.playerId;
-  }
-
+// Helper function to get player ID and data
+async function getPlayerData(nickname) {
+  const playerNick = nickname || PLAYER_NICKNAME;
+  
   const response = await fetch(
-    `https://open.faceit.com/data/v4/players?nickname=${PLAYER_NICKNAME}`,
+    `https://open.faceit.com/data/v4/players?nickname=${playerNick}`,
     {
       headers: {
         Authorization: `Bearer ${FACEIT_KEY}`
@@ -35,9 +33,7 @@ async function getPlayerId() {
     throw new Error(`API FACEIT retornou status ${response.status}`);
   }
 
-  const data = await response.json();
-  cache.playerId = data.player_id;
-  return cache.playerId;
+  return await response.json();
 }
 
 // Endpoint de health check para manter o serviço ativo (ping here to keep the service alive)
@@ -54,20 +50,7 @@ app.get("/elo", async (req, res) => {
   }
 
   try {
-    const response = await fetch(
-      `https://open.faceit.com/data/v4/players?nickname=${PLAYER_NICKNAME}`,
-      {
-        headers: {
-          Authorization: `Bearer ${FACEIT_KEY}`
-        }
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`API FACEIT retornou status ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await getPlayerData();
     
     // Verifica se o jogador tem dados de CS2
     if (!data.games || !data.games.cs2 || !data.games.cs2.faceit_elo) {
@@ -90,30 +73,16 @@ app.get("/elo", async (req, res) => {
 
 app.get("/stats", async (req, res) => {
   const now = Date.now();
+  const playerQuery = req.query.player;
 
-  // Verifica cache
-  if (cache.stats.data && now - cache.stats.lastUpdate < CACHE_TIME) {
+  // Verifica cache (apenas para jogador padrão)
+  if (!playerQuery && cache.stats.data && now - cache.stats.lastUpdate < CACHE_TIME) {
     return res.send(cache.stats.data);
   }
 
   try {
-    const playerId = await getPlayerId();
-
-    // Busca dados do jogador para ELO e nível
-    const playerResponse = await fetch(
-      `https://open.faceit.com/data/v4/players?nickname=${PLAYER_NICKNAME}`,
-      {
-        headers: {
-          Authorization: `Bearer ${FACEIT_KEY}`
-        }
-      }
-    );
-
-    if (!playerResponse.ok) {
-      throw new Error(`API FACEIT retornou status ${playerResponse.status}`);
-    }
-
-    const playerData = await playerResponse.json();
+    const playerData = await getPlayerData(playerQuery);
+    const playerId = playerData.player_id;
 
     // Busca estatísticas do CS2
     const statsResponse = await fetch(
@@ -134,6 +103,7 @@ app.get("/stats", async (req, res) => {
 
     // Formata as estatísticas
     const stats = [
+      `${playerData.nickname}:`,
       `ELO: ${playerData.games.cs2.faceit_elo}`,
       `Level: ${playerData.games.cs2.skill_level}`,
       `Vitórias: ${lifetime["Wins"] || 0}`,
@@ -142,10 +112,13 @@ app.get("/stats", async (req, res) => {
       `HS%: ${lifetime["Average Headshots %"] || 0}%`
     ].join(" | ");
 
-    cache.stats = {
-      data: stats,
-      lastUpdate: now
-    };
+    // Salva no cache apenas se for o jogador padrão
+    if (!playerQuery) {
+      cache.stats = {
+        data: stats,
+        lastUpdate: now
+      };
+    }
 
     res.send(stats);
   } catch (err) {
@@ -163,7 +136,8 @@ app.get("/streak", async (req, res) => {
   }
 
   try {
-    const playerId = await getPlayerId();
+    const playerData = await getPlayerData();
+    const playerId = playerData.player_id;
 
     // Busca histórico de partidas
     const historyResponse = await fetch(

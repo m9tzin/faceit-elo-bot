@@ -83,16 +83,20 @@ Add commands in your Twitch chat:
 
 ```bash
 !addcom !elo $(urlfetch https://your-app.onrender.com/elo)
-!addcom !stats $(urlfetch https://your-app.onrender.com/stats)
 !addcom !streak $(urlfetch https://your-app.onrender.com/streak)
+
+# Stats can search any player
+!addcom !stats $(urlfetch https://your-app.onrender.com/stats?player=$(1))
 ```
 
 ### StreamElements
 
 ```bash
 !command add !elo $(urlfetch https://your-app.onrender.com/elo)
-!command add !stats $(urlfetch https://your-app.onrender.com/stats)
 !command add !streak $(urlfetch https://your-app.onrender.com/streak)
+
+# Stats can search any player
+!command add !stats $(urlfetch https://your-app.onrender.com/stats?player=${1})
 ```
 
 ### Example Usage
@@ -101,26 +105,37 @@ Add commands in your Twitch chat:
 Viewer: !elo
 Bot: 2150
 
-Viewer: !stats
-Bot: ELO: 2150 | Level: 10 | Partidas: 1234 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
-
 Viewer: !streak
 Bot: Últimas 10: W W L W L W W W L W
+
+Viewer: !stats
+Bot: togs: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+
+Viewer: !stats s1mple
+Bot: s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+
+Viewer: !stats ZywOo
+Bot: ZywOo: | ELO: 3100 | Level: 10 | Vitórias: 2000 | Winrate: 60% | K/D: 1.40 | HS%: 50%
 ```
 
 ## API Endpoints
 
 ### `GET /elo`
-Returns the current CS2 ELO rating as plain text.
+Returns the current CS2 ELO rating for the default player.
 
-**Response:** `2150`
+**Example:**
+```bash
+curl https://your-app.onrender.com/elo
+# 2150
+```
 
-### `GET /stats`
-Returns comprehensive player statistics.
+### `GET /stats` or `GET /stats?player=nickname`
+Returns comprehensive player statistics. Supports searching any player via query parameter.
 
-**Response:** `ELO: 2150 | Level: 10 | Partidas: 1234 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%`
+**Response:** `nickname: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%`
 
 **Includes:**
+- Player nickname
 - Current ELO
 - Skill level (1-10)
 - Total wins
@@ -128,10 +143,27 @@ Returns comprehensive player statistics.
 - K/D ratio
 - Headshot percentage
 
+**Examples:**
+```bash
+# Default player
+curl https://your-app.onrender.com/stats
+# togs: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+
+# Search any player
+curl https://your-app.onrender.com/stats?player=s1mple
+# s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+```
+
 ### `GET /streak`
-Returns the last 10 match results (W = Win, L = Loss).
+Returns the last 10 match results (W = Win, L = Loss) for the default player.
 
 **Response:** `Últimas 10: W W L W L W W W L W`
+
+**Example:**
+```bash
+curl https://your-app.onrender.com/streak
+# Últimas 10: W L W W W L W L W W
+```
 
 ### `GET /health`
 Health check endpoint for monitoring.
