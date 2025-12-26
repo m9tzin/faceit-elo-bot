@@ -62,7 +62,8 @@ export async function getPlayerData(nickname) {
   
   for (const variation of uniqueVariations) {
     try {
-      const data = await faceitRequest(`/players?nickname=${variation}`);
+      const encodedNickname = encodeURIComponent(variation);
+      const data = await faceitRequest(`/players?nickname=${encodedNickname}`);
       return data;
     } catch (error) {
       lastError = error;
