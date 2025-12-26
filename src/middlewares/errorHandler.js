@@ -33,7 +33,13 @@ export function errorHandler(err, req, res, next) {
   console.error('Error:', err.message);
   console.error('Stack:', err.stack);
 
-  // Handle custom errors with specific status codes
+  // Handling custom errors with specific status codes
+  // Handle PlayerNotFoundError (404) - return 200 so Twitch bots display the message
+  if (err instanceof PlayerNotFoundError) {
+    return res.status(200).send(err.message);
+  }
+
+  // Handle other custom errors with specific status codes
   if (err.statusCode) {
     return res.status(err.statusCode).send(err.message);
   }
