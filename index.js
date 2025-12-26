@@ -123,7 +123,7 @@ app.get("/stats", async (req, res) => {
     res.send(stats);
   } catch (err) {
     console.error("Erro ao buscar stats:", err.message);
-    res.send("Erro ao buscar estatísticas");
+    res.send("Erro ao buscar estatísticas :(");
   }
 });
 
