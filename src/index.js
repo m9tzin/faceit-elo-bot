@@ -3,7 +3,9 @@
  * Main application entry point
  */
 
+// Express framework
 import express from 'express';
+// Configuration
 import { config, validateConfig } from './config/index.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
