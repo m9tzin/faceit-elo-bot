@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Backup files
+*.backup
+
 # Node modules
 node_modules/
 

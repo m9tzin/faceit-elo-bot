@@ -1,11 +1,11 @@
 {
   "name": "faceit-elo-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A simple Express.js service that fetches FACEIT CS2 ELO ratings for Twitch chat bots",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

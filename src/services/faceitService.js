@@ -1,0 +1,127 @@
+/**
+ * FACEIT API Service
+ * Handles all interactions with the FACEIT API
+ */
+
+import fetch from 'node-fetch';
+import { config } from '../config/index.js';
+
+/**
+ * Normalize player nickname (lowercase, trim whitespace)
+ * @param {string} nickname - Player nickname
+ * @returns {string} Normalized nickname
+ */
+function normalizeNickname(nickname) {
+  return (nickname || config.faceit.defaultPlayer).toLowerCase().trim();
+}
+
+/**
+ * Make authenticated request to FACEIT API
+ * @param {string} endpoint - API endpoint
+ * @returns {Promise<Object>} API response
+ */
+async function faceitRequest(endpoint) {
+  const url = `${config.faceit.baseUrl}${endpoint}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${config.faceit.apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`FACEIT API returned status ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Get player data by nickname
+ * @param {string} [nickname] - Player nickname (optional, uses default if not provided)
+ * @returns {Promise<Object>} Player data
+ */
+export async function getPlayerData(nickname) {
+  const playerNick = normalizeNickname(nickname);
+  return await faceitRequest(`/players?nickname=${playerNick}`);
+}
+
+/**
+ * Get player statistics for CS2
+ * @param {string} playerId - Player ID
+ * @returns {Promise<Object>} Player statistics
+ */
+export async function getPlayerStats(playerId) {
+  return await faceitRequest(`/players/${playerId}/stats/cs2`);
+}
+
+/**
+ * Get player match history
+ * @param {string} playerId - Player ID
+ * @param {number} [limit=10] - Number of matches to retrieve
+ * @returns {Promise<Object>} Match history
+ */
+export async function getPlayerHistory(playerId, limit = 10) {
+  return await faceitRequest(`/players/${playerId}/history?game=cs2&offset=0&limit=${limit}`);
+}
+
+/**
+ * Check if player has CS2 data
+ * @param {Object} playerData - Player data object
+ * @returns {boolean} True if player has CS2 data
+ */
+export function hasCS2Data(playerData) {
+  return !!(playerData?.games?.cs2?.faceit_elo);
+}
+
+/**
+ * Format player statistics for display
+ * @param {Object} playerData - Player data
+ * @param {Object} statsData - Statistics data
+ * @returns {string} Formatted statistics string
+ */
+export function formatStats(playerData, statsData) {
+  const lifetime = statsData.lifetime;
+  
+  return [
+    `${playerData.nickname}:`,
+    `ELO: ${playerData.games.cs2.faceit_elo}`,
+    `Level: ${playerData.games.cs2.skill_level}`,
+    `Vitórias: ${lifetime['Wins'] || 0}`,
+    `Winrate: ${lifetime['Win Rate %'] || 0}%`,
+    `K/D: ${lifetime['Average K/D Ratio'] || 0}`,
+    `HS%: ${lifetime['Average Headshots %'] || 0}%`
+  ].join(' | ');
+}
+
+/**
+ * Process match history to get W/L streak
+ * @param {Array} matches - Match history array
+ * @param {string} playerId - Player ID
+ * @returns {string} Formatted streak string
+ */
+export function processMatchStreak(matches, playerId) {
+  if (!matches || matches.length === 0) {
+    return 'Nenhuma partida encontrada';
+  }
+
+  const results = matches.map(match => {
+    const teams = match.teams;
+    let playerTeam = null;
+
+    // Find which team the player was on
+    if (teams.faction1.players.some(p => p.player_id === playerId)) {
+      playerTeam = 'faction1';
+    } else if (teams.faction2.players.some(p => p.player_id === playerId)) {
+      playerTeam = 'faction2';
+    }
+
+    // Check if player's team won
+    const won = match.results.winner === playerTeam;
+    return won ? 'W' : 'L';
+  });
+
+  return `Últimas 10: ${results.join(' ')}`;
+}
+

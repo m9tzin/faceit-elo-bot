@@ -183,11 +183,26 @@ Health check endpoint for monitoring.
 | `PLAYER_NICKNAME` | Yes | FACEIT player nickname to track |
 | `PORT` | No | Server port (default: 3000) |
 
+## Project Structure
+
+```
+src/
+├── config/           # Configuration management
+├── services/         # FACEIT API integration  
+├── routes/           # HTTP endpoints
+├── middlewares/      # Request/response processing
+├── utils/            # Utilities (cache, etc)
+└── index.js          # Application entry point
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation.
+
 ## Tech Stack
 
 - **Node.js** - Runtime
 - **Express.js** - Web framework
 - **node-fetch** - HTTP client
+- **Modular Architecture** - Professional project structure
 
 ## Contributing
 
