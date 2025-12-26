@@ -7,12 +7,12 @@ import fetch from 'node-fetch';
 import { config } from '../config/index.js';
 
 /**
- * Normalize player nickname (lowercase, trim whitespace)
+ * Normalize player nickname (trim whitespace only)
  * @param {string} nickname - Player nickname
  * @returns {string} Normalized nickname
  */
 function normalizeNickname(nickname) {
-  return (nickname || config.faceit.defaultPlayer).toLowerCase().trim();
+  return (nickname || config.faceit.defaultPlayer).trim();
 }
 
 /**
@@ -38,13 +38,39 @@ async function faceitRequest(endpoint) {
 }
 
 /**
- * Get player data by nickname
+ * Get player data by nickname with case-insensitive fallback
+ * Tries multiple variations if the exact nickname fails
  * @param {string} [nickname] - Player nickname (optional, uses default if not provided)
  * @returns {Promise<Object>} Player data
  */
 export async function getPlayerData(nickname) {
   const playerNick = normalizeNickname(nickname);
-  return await faceitRequest(`/players?nickname=${playerNick}`);
+  
+  // Try variations in order: original, lowercase, uppercase, capitalize
+  const variations = [
+    playerNick,
+    playerNick.toLowerCase(),
+    playerNick.toUpperCase(),
+    playerNick.charAt(0).toUpperCase() + playerNick.slice(1).toLowerCase()
+  ];
+  
+  // Remove duplicates
+  const uniqueVariations = [...new Set(variations)];
+  
+  let lastError = null;
+  
+  for (const variation of uniqueVariations) {
+    try {
+      const data = await faceitRequest(`/players?nickname=${variation}`);
+      return data;
+    } catch (error) {
+      lastError = error;
+      // Continue to next variation
+    }
+  }
+  
+  // If all variations failed, throw a user-friendly error
+  throw new Error(`Jogador não encontrado. Verifique se o nickname está correto.`);
 }
 
 /**
