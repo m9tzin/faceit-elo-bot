@@ -11,7 +11,9 @@ export const config = {
   faceit: {
     apiKey: process.env.FACEIT_KEY,
     baseUrl: 'https://open.faceit.com/data/v4',
-    defaultPlayer: process.env.PLAYER_NICKNAME || 'togs'
+    defaultPlayer: process.env.PLAYER_NICKNAME || 'togs' // .env PLAYER_NICKNAME;
+    .toLowerCase()
+    .trim()
   },
   
   // Cache configuration
