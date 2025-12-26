@@ -7,7 +7,7 @@
  * Custom error class for player not found
  */
 export class PlayerNotFoundError extends Error {
-  constructor(message = 'nick não encontrado :(') {
+  constructor(message = 'nick inválido ou não encontrado :(') {
     super(message);
     this.name = 'PlayerNotFoundError';
     this.statusCode = 404;
