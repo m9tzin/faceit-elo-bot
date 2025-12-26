@@ -20,7 +20,7 @@ router.get('/',
     const playerData = await getPlayerData();
     
     if (!hasCS2Data(playerData)) {
-      throw new Error('Dados de CS2 não encontrados para o jogador');
+      throw new Error('Dados de CS2 não encontrados para o jogador'); // TODO: Translate to English if needed
     }
 
     const elo = playerData.games.cs2.faceit_elo;

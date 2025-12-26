@@ -195,14 +195,11 @@ src/
 └── index.js          # Application entry point
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation.
-
 ## Tech Stack
 
 - **Node.js** - Runtime
 - **Express.js** - Web framework
 - **node-fetch** - HTTP client
-- **Modular Architecture** - Professional project structure
 
 ## Contributing
 
@@ -221,3 +218,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ---
 
 Made with ❤️ for the FACEIT and Twitch communities
+
