@@ -17,37 +17,56 @@ function normalizeNickname(nickname) {
 }
 
 /**
- * Make authenticated request to FACEIT API
+ * Make authenticated request to FACEIT API with timeout
  * @param {string} endpoint - API endpoint
+ * @param {number} timeoutMs - Request timeout in milliseconds (default: 4000ms)
  * @returns {Promise<Object>} API response
  */
-async function faceitRequest(endpoint) {
+async function faceitRequest(endpoint, timeoutMs = 4000) {
   const url = `${config.faceit.baseUrl}${endpoint}`;
   
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${config.faceit.apiKey}`,
-      'Content-Type': 'application/json'
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${config.faceit.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`FACEIT API returned status ${response.status}`);
     }
-  });
 
-  if (!response.ok) {
-    throw new Error(`FACEIT API returned status ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    // Handle timeout errors
+    if (error.name === 'AbortError') {
+      throw new Error('FACEIT API timeout');
+    }
+    
+    throw error;
   }
-
-  return await response.json();
 }
 
 /**
  * Get player data by nickname with case-insensitive fallback
- * Tries multiple variations if the exact nickname fails
+ * Tries multiple variations in parallel for faster response
  * @param {string} [nickname] - Player nickname (optional, uses default if not provided)
  * @returns {Promise<Object>} Player data
  */
 export async function getPlayerData(nickname) {
   const playerNick = normalizeNickname(nickname);
   
-  // Try variations in order: original, lowercase, uppercase, capitalize
+  // Try variations: original, lowercase, uppercase, capitalize
   const variations = [
     playerNick,
     playerNick.toLowerCase(),
@@ -58,20 +77,27 @@ export async function getPlayerData(nickname) {
   // Remove duplicates
   const uniqueVariations = [...new Set(variations)];
   
-  let lastError = null;
-  
-  for (const variation of uniqueVariations) {
+  // Try all variations in parallel (faster response, respects Nightbot 5s timeout)
+  const requests = uniqueVariations.map(async (variation) => {
     try {
       const encodedNickname = encodeURIComponent(variation);
       const data = await faceitRequest(`/players?nickname=${encodedNickname}`);
-      return data;
+      return { success: true, data };
     } catch (error) {
-      lastError = error;
-      // Continue to next variation
+      return { success: false, error };
     }
+  });
+  
+  // Wait for all requests to complete
+  const results = await Promise.all(requests);
+  
+  // Return first successful result
+  const successResult = results.find(r => r.success);
+  if (successResult) {
+    return successResult.data;
   }
   
-  // If all variations failed, throw a 404 error with user-friendly message
+  // If all variations failed, throw player not found error
   throw new PlayerNotFoundError();
 }
 
