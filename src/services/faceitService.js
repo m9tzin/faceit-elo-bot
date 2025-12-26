@@ -5,6 +5,7 @@
 
 import fetch from 'node-fetch';
 import { config } from '../config/index.js';
+import { PlayerNotFoundError } from '../middlewares/errorHandler.js';
 
 /**
  * Normalize player nickname (trim whitespace only)
@@ -69,8 +70,8 @@ export async function getPlayerData(nickname) {
     }
   }
   
-  // If all variations failed, throw a user-friendly error
-  throw new Error(`Jogador não encontrado. Verifique se o nickname está correto.`);
+  // If all variations failed, throw a 404 error with user-friendly message
+  throw new PlayerNotFoundError();
 }
 
 /**
