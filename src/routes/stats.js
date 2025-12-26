@@ -30,7 +30,7 @@ router.get('/',
     const playerData = await getPlayerData(playerQuery);
     
     if (!hasCS2Data(playerData)) {
-      throw new Error('Dados de CS2 não encontrados para o jogador');
+      throw new Error('Dados de CS2 não encontrados para o jogador'); // TODO: Translate to English if needed
     }
 
     // Get player statistics
