@@ -4,6 +4,17 @@
  */
 
 /**
+ * Custom error class for player not found
+ */
+export class PlayerNotFoundError extends Error {
+  constructor(message = 'nick não encontrado :(') {
+    super(message);
+    this.name = 'PlayerNotFoundError';
+    this.statusCode = 404;
+  }
+}
+
+/**
  * Async route wrapper to catch errors
  * @param {Function} fn - Async route handler
  * @returns {Function} Express route handler with error catching
@@ -21,6 +32,11 @@ export function asyncHandler(fn) {
 export function errorHandler(err, req, res, next) {
   console.error('Error:', err.message);
   console.error('Stack:', err.stack);
+
+  // Handle custom errors with specific status codes
+  if (err.statusCode) {
+    return res.status(err.statusCode).send(err.message);
+  }
 
   // Determine error message based on error type
   let message = 'Erro ao processar requisição';
