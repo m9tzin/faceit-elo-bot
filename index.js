@@ -3,12 +3,15 @@ import fetch from "node-fetch";
 
 const app = express();
 
+// Configuration
+const FACEIT_KEY = process.env.FACEIT_KEY;
+const PLAYER_NICKNAME = process.env.PLAYER_NICKNAME || "togs";
+const CACHE_TIME = 30 * 1000; // 30 segundos
+
 let cache = {
 elo: null,
 lastUpdate: 0
 };
-
-const CACHE_TIME = 30 * 1000; // 30 segundos
 
 // Endpoint de health check para manter o serviço ativo (ping here to keep the service alive)
 app.get("/health", (req, res) => {
@@ -25,10 +28,10 @@ if (cache.elo && now - cache.lastUpdate < CACHE_TIME) {
 
 try {
     const response = await fetch(
-    "https://open.faceit.com/data/v4/players?nickname=togs",
+    `https://open.faceit.com/data/v4/players?nickname=${PLAYER_NICKNAME}`,
     {
         headers: {
-        Authorization: `Bearer ${process.env.FACEIT_KEY}`
+        Authorization: `Bearer ${FACEIT_KEY}`
         }
     }
     );
@@ -59,5 +62,6 @@ try {
 });
 
 app.listen(process.env.PORT || 3000, () => {
-console.log("Servidor rodando");
+console.log(`Servidor rodando na porta ${process.env.PORT || 3000}`);
+console.log(`Monitorando jogador: ${PLAYER_NICKNAME}`);
 });

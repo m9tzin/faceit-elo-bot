@@ -1,16 +1,37 @@
 {
   "name": "faceit-elo-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "A simple Express.js service that fetches FACEIT CS2 ELO ratings for Twitch chat bots",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "dev": "node --watch index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "faceit",
+    "elo",
+    "twitch",
+    "bot",
+    "cs2",
+    "counter-strike",
+    "gaming",
+    "api"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/faceit-elo-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/faceit-elo-bot/issues"
+  },
+  "homepage": "https://github.com/yourusername/faceit-elo-bot#readme",
   "dependencies": {
     "express": "^5.2.1",
     "node-fetch": "^3.3.2"
