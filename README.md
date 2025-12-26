@@ -143,14 +143,19 @@ Returns comprehensive player statistics. Supports searching any player via query
 - K/D ratio
 - Headshot percentage
 
+**Note:** Nicknames are case-insensitive (automatically converted to lowercase).
+
 **Examples:**
 ```bash
 # Default player
 curl https://your-app.onrender.com/stats
 # togs: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
 
-# Search any player
+# Search any player (case-insensitive)
 curl https://your-app.onrender.com/stats?player=s1mple
+# s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+
+curl https://your-app.onrender.com/stats?player=S1MPLE
 # s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 ```
 

@@ -18,7 +18,7 @@ let cache = {
 
 // Helper function to get player ID and data
 async function getPlayerData(nickname) {
-  const playerNick = nickname || PLAYER_NICKNAME;
+  const playerNick = (nickname || PLAYER_NICKNAME).toLowerCase().trim();
   
   const response = await fetch(
     `https://open.faceit.com/data/v4/players?nickname=${playerNick}`,
