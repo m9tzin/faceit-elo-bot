@@ -7,7 +7,6 @@ A simple Express.js service that fetches and displays a FACEIT player's CS2 ELO 
 - Fetches real-time FACEIT CS2 data via official API
 - **3 commands:** ELO, full stats, and match streak
 - Built-in 30-second caching to avoid rate limiting
-- Health check endpoint for uptime monitoring
 - Works with Nightbot, StreamElements, and other Twitch bots
 
 ## Quick Start
@@ -75,34 +74,6 @@ This service can be deployed on any platform that supports Node.js. Here are som
    - `PLAYER_NICKNAME` = your FACEIT nickname
    - `PORT` = server port (optional, defaults to 3000)
 6. Deploy and copy your service URL
-
-### Platform Examples
-
-**Render:**
-- Free tier available
-- Note: Free tier sleeps after 15 minutes of inactivity. Use a service like [UptimeRobot](https://uptimerobot.com/) to ping the `/health` endpoint every 5 minutes to keep it awake.
-
-**Railway:**
-- Simple deployment with GitHub integration
-- Free tier available with usage limits
-
-**Heroku:**
-- Classic platform with easy Git-based deployment
-- Free tier discontinued, paid plans available
-
-**Vercel / Netlify:**
-- Great for serverless deployments
-- Free tier available
-
-**DigitalOcean / AWS / Google Cloud:**
-- Full control over infrastructure
-- Various pricing options
-
-**Self-hosted (VPS):**
-- Deploy on your own server
-- Full control and customization
-
-Choose the platform that best fits your needs!
 
 ## Twitch Integration
 
