@@ -81,7 +81,15 @@ export async function getPlayerData(nickname) {
  * @returns {Promise<Object>} Player statistics
  */
 export async function getPlayerStats(playerId) {
-  return await faceitRequest(`/players/${playerId}/stats/cs2`);
+  try {
+    return await faceitRequest(`/players/${playerId}/stats/cs2`);
+  } catch (error) {
+    // If stats not found, it means player has no CS2 data
+    if (error.message.includes('404')) {
+      throw new Error('Jogador não possui dados de CS2');
+    }
+    throw error;
+  }
 }
 
 /**

@@ -34,7 +34,7 @@ export function errorHandler(err, req, res, next) {
   console.error('Stack:', err.stack);
 
   // Handling custom errors with specific status codes
-  // Handle PlayerNotFoundError (404) - return 200 so Twitch bots display the message
+  // Handle PlayerNotFoundError (404) - return 200 so @Nightbot and @StreamElements bots can display the message
   if (err instanceof PlayerNotFoundError) {
     return res.status(200).send(err.message);
   }
@@ -44,6 +44,11 @@ export function errorHandler(err, req, res, next) {
     return res.status(err.statusCode).send(err.message);
   }
 
+  // Handle CS2 stats not found - return 200 so @Nightbot and @StreamElements bots can display the message
+  if (err.message.includes('CS2')) {
+    return res.status(200).send('Jogador não possui stats no CS2 :(');
+  }
+
   // Determine error message based on error type
   let message = 'Erro ao processar requisição';
   
@@ -51,8 +56,6 @@ export function errorHandler(err, req, res, next) {
     message = 'Jogador não encontrado';
   } else if (err.message.includes('API')) {
     message = 'Erro ao buscar dados da FACEIT';
-  } else if (err.message.includes('CS2')) {
-    message = 'Jogador não possui dados de CS2';
   }
 
   res.status(500).send(message);
