@@ -6,7 +6,8 @@
 
 import express from 'express';
 import { asyncHandler } from '../middlewares/errorHandler.js';
-import { cacheMiddleware } from '../middlewares/cache.js';
+import { cache } from '../utils/cache.js';
+import { config } from '../config/index.js';
 import { 
   getPlayerData, 
   getPlayerStats, 
@@ -22,9 +23,18 @@ const router = express.Router();
  * Optional query parameter 'player' to search any player
  */
 router.get('/', 
-  cacheMiddleware('stats', (req) => !req.query.player), // Cache only default player
   asyncHandler(async (req, res) => {
     const playerQuery = req.query.player;
+    
+    // Generate cache key based on player
+    const cacheKey = playerQuery ? `stats:${playerQuery.toLowerCase().trim()}` : 'stats:default';
+    
+    // Check cache first
+    const cachedData = cache.get(cacheKey, config.cache.ttl);
+    
+    if (cachedData) {
+      return res.send(cachedData);
+    }
     
     // Get player data
     const playerData = await getPlayerData(playerQuery);
@@ -38,6 +48,10 @@ router.get('/',
     
     // Format and send response
     const formattedStats = formatStats(playerData, statsData);
+    
+    // Cache the response
+    cache.set(cacheKey, formattedStats);
+    
     res.send(formattedStats);
   })
 );
