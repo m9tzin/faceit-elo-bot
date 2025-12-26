@@ -10,6 +10,11 @@ lastUpdate: 0
 
 const CACHE_TIME = 30 * 1000; // 30 segundos
 
+// Endpoint de health check para manter o serviço ativo (ping here to keep the service alive)
+app.get("/health", (req, res) => {
+res.status(200).send("OK");
+});
+
 app.get("/elo", async (req, res) => {
 const now = Date.now();
 
@@ -36,7 +41,7 @@ try {
     
     // Verifica se o jogador tem dados de CS2
     if (!data.games || !data.games.cs2 || !data.games.cs2.faceit_elo) {
-    throw new Error("Dados de CS2 não encontrados");
+    throw new Error("Dados do player não encontrados");
     }
 
     const elo = data.games.cs2.faceit_elo;
