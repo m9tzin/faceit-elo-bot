@@ -4,7 +4,8 @@ A simple Express.js service that fetches and displays a FACEIT player's CS2 ELO 
 
 ## Features
 
-- Fetches real-time FACEIT CS2 ELO via official API
+- Fetches real-time FACEIT CS2 data via official API
+- **3 commands:** ELO, full stats, and match streak
 - Built-in 30-second caching to avoid rate limiting
 - Health check endpoint for uptime monitoring
 - Ready for free deployment on Render
@@ -50,6 +51,12 @@ Test it:
 ```bash
 curl http://localhost:3000/elo
 # Response: 2150
+
+curl http://localhost:3000/stats
+# Response: ELO: 2150 | Level: 10 | Partidas: 1234 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+
+curl http://localhost:3000/streak
+# Response: Últimas 10: W W L W L W W W L W
 ```
 
 ## Deploy on Render
@@ -70,22 +77,35 @@ curl http://localhost:3000/elo
 
 ## Twitch Integration
 
-Add the command in your Twitch chat:
+Add commands in your Twitch chat:
 
-**Nightbot:**
-```
+### Nightbot
+
+```bash
 !addcom !elo $(urlfetch https://your-app.onrender.com/elo)
+!addcom !stats $(urlfetch https://your-app.onrender.com/stats)
+!addcom !streak $(urlfetch https://your-app.onrender.com/streak)
 ```
 
-**StreamElements:**
-```
+### StreamElements
+
+```bash
 !command add !elo $(urlfetch https://your-app.onrender.com/elo)
+!command add !stats $(urlfetch https://your-app.onrender.com/stats)
+!command add !streak $(urlfetch https://your-app.onrender.com/streak)
 ```
 
-**Result:**
+### Example Usage
+
 ```
 Viewer: !elo
 Bot: 2150
+
+Viewer: !stats
+Bot: ELO: 2150 | Level: 10 | Partidas: 1234 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+
+Viewer: !streak
+Bot: Últimas 10: W W L W L W W W L W
 ```
 
 ## API Endpoints
@@ -93,7 +113,25 @@ Bot: 2150
 ### `GET /elo`
 Returns the current CS2 ELO rating as plain text.
 
-**Response:** `2150` (or `Erro ao buscar ELO` on error)
+**Response:** `2150`
+
+### `GET /stats`
+Returns comprehensive player statistics.
+
+**Response:** `ELO: 2150 | Level: 10 | Partidas: 1234 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%`
+
+**Includes:**
+- Current ELO
+- Skill level (1-10)
+- Total wins
+- Win rate percentage
+- K/D ratio
+- Headshot percentage
+
+### `GET /streak`
+Returns the last 10 match results (W = Win, L = Loss).
+
+**Response:** `Últimas 10: W W L W L W W W L W`
 
 ### `GET /health`
 Health check endpoint for monitoring.
