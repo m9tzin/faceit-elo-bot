@@ -1,7 +1,6 @@
 # Environment variables - SENSITIVE DATA
 .env
 .env.*
-!.env.example
 
 # Backup files
 *.backup
