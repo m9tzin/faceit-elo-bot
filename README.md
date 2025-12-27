@@ -21,13 +21,7 @@ npm install
 
 ### 2. Configuration
 
-Create a `.env` file from the example:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your details:
+Create and edit `.env` with your details:
 
 ```env
 FACEIT_KEY=your_faceit_api_key_here
@@ -71,7 +65,7 @@ This service can be deployed on any platform that supports Node.js. Here are som
    - **Start Command:** `npm start`
 5. Add Environment Variables:
    - `FACEIT_KEY` = your FACEIT API key
-   - `PLAYER_NICKNAME` = your FACEIT nickname
+   - `PLAYER_NICKNAME` = your FACEIT nickname (default: player)
    - `PORT` = server port (optional, defaults to 3000)
 6. Deploy and copy your service URL
 
@@ -109,17 +103,17 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL:
 Viewer: !elo
 Bot: 2150
 
-Viewer: !streak
+Viewer: !streak (from default player)
 Bot: Últimas 10: W W L W L W W W L W
 
-Viewer: !stats
-Bot: togs: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+Viewer: !stats (from default player)
+Bot: togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
 
-Viewer: !stats s1mple
-Bot: s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+Viewer: !stats s1mple (from any player)
+Bot: s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 
-Viewer: !stats ZywOo
-Bot: ZywOo: | ELO: 3100 | Level: 10 | Vitórias: 2000 | Winrate: 60% | K/D: 1.40 | HS%: 50%
+Viewer: !stats ZywOo (from any player)
+Bot: ZywOo: | ELO: 3100 | Level: 10 | Wins: 2000 | Winrate: 60% | K/D: 1.40 | HS%: 50%
 ```
 
 ## API Endpoints
@@ -136,7 +130,7 @@ curl https://YOUR_SERVICE_URL/elo
 ### `GET /stats` or `GET /stats?player=nickname`
 Returns comprehensive player statistics. Supports searching any player via query parameter.
 
-**Response:** `nickname: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%`
+**Response:** `nickname: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%`
 
 **Includes:**
 - Player nickname
@@ -153,14 +147,14 @@ Returns comprehensive player statistics. Supports searching any player via query
 ```bash
 # Default player
 curl https://YOUR_SERVICE_URL/stats
-# togs: | ELO: 2150 | Level: 10 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+# togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
 
 # Search any player (case-insensitive)
 curl https://YOUR_SERVICE_URL/stats?player=s1mple
-# s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+# s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 
 curl https://YOUR_SERVICE_URL/stats?player=S1MPLE
-# s1mple: | ELO: 3250 | Level: 10 | Vitórias: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+# s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 ```
 
 ### `GET /streak`
