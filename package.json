@@ -26,12 +26,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/faceit-elo-bot.git"
+    "url": "https://github.com/m9tzin/faceit-elo-bot.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/faceit-elo-bot/issues"
+    "url": "https://github.com/m9tzin/faceit-elo-bot/issues"
   },
-  "homepage": "https://github.com/yourusername/faceit-elo-bot#readme",
+  "homepage": "https://github.com/m9tzin/faceit-elo-bot#readme",
   "dependencies": {
     "express": "^5.2.1",
     "node-fetch": "^3.3.2"
