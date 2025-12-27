@@ -42,7 +42,7 @@ app.use(errorHandler);
 const PORT = config.port;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`👤 Default player: ${config.faceit.defaultPlayer}`);
+  console.log(`👤 Default player: ${config.faceit.defaultPlayer}`); // default player
   console.log(`⏱️  Cache TTL: ${config.cache.ttl / 1000}s`);
   console.log(`\nEndpoints:`);
   console.log(`  GET /health - Health check`);

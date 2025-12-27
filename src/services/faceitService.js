@@ -150,7 +150,7 @@ export function formatStats(playerData, statsData) {
     `${playerData.nickname}:`,
     `ELO: ${playerData.games.cs2.faceit_elo}`,
     `Level: ${playerData.games.cs2.skill_level}`,
-    `Vitórias: ${lifetime['Wins'] || 0}`,
+    `Wins: ${lifetime['Wins'] || 0}`,
     `Winrate: ${lifetime['Win Rate %'] || 0}%`,
     `K/D: ${lifetime['Average K/D Ratio'] || 0}`,
     `HS%: ${lifetime['Average Headshots %'] || 0}%`

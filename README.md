@@ -14,7 +14,7 @@ A simple Express.js service that fetches and displays a FACEIT player's CS2 ELO 
 ### 1. Installation
 
 ```bash
-git clone https://github.com/yourusername/faceit-elo-bot.git
+git clone https://github.com/m9tzin/faceit-elo-bot.git
 cd faceit-elo-bot
 npm install
 ```
@@ -51,7 +51,7 @@ curl http://localhost:3000/elo
 # Response: 2150
 
 curl http://localhost:3000/stats
-# Response: ELO: 2150 | Level: 10 | Partidas: 1234 | Vitórias: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+# Response: ELO: 2150 | Level: 10 | Matches: 1234 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
 
 curl http://localhost:3000/streak
 # Response: Últimas 10: W W L W L W W W L W
