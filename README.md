@@ -42,13 +42,19 @@ npm start
 Test it:
 ```bash
 curl http://localhost:3000/elo
-# Response: 2150
+# Response: Elo: 2150. Today -> Win: 3 Lose: 1
+
+curl http://localhost:3000/elo?nick=FENOMENO
+# Response: Elo: 3456. Today -> Win: 2 Lose: 0
 
 curl http://localhost:3000/stats
-# Response: ELO: 2150 | Level: 10 | Matches: 1234 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+# Response: togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
 
 curl http://localhost:3000/streak
 # Response: Últimas 10: W W L W L W W W L W
+
+curl http://localhost:3000/streak?nick=FENOMENO
+# Response: Últimas 10: W W W L W W W W W W
 ```
 
 ## Deployment
@@ -75,56 +81,164 @@ Add commands in your Twitch chat:
 
 ### Nightbot
 
-Replace `YOUR_SERVICE_URL` with your deployed service URL:
+Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK` with your FACEIT nickname:
+
+**Option 1: Using a fixed player nickname (recommended for single stream)**
 
 ```bash
-!addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo)
-!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak)
+# ELO command - uses fixed player nickname
+!addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=YOUR_PLAYER_NICK)
 
-# Stats can search any player
+# Streak command - uses fixed player nickname
+!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=YOUR_PLAYER_NICK)
+
+# Stats command - uses fixed player nickname
+!addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
+```
+
+**Option 2: Using Nightbot custom variable (for multiple streams)**
+
+First, create a custom variable in Nightbot:
+1. Go to Nightbot Dashboard → Custom Commands → Variables
+2. Create a variable named `faceit_player` with value `YOUR_PLAYER_NICK`
+
+Then use it in commands:
+```bash
+# ELO command - uses custom variable
+!addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=$(faceit_player))
+
+# Streak command - uses custom variable
+!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(faceit_player))
+
+# Stats command - uses custom variable
+!addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(faceit_player))
+```
+
+**Option 3: Using command parameter (search any player)**
+
+```bash
+# ELO command - accepts player nickname as parameter
+# Usage: !elo (uses default) or !elo s1mple (searches player)
+!addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=$(1))
+
+# Streak command - accepts player nickname as parameter
+!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(1))
+
+# Stats command - accepts player nickname as parameter
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
 ```
 
 ### StreamElements
 
-Replace `YOUR_SERVICE_URL` with your deployed service URL:
+Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK` with your FACEIT nickname:
+
+**Option 1: Using a fixed player nickname (recommended for single stream)**
 
 ```bash
-!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo)
-!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak)
+# ELO command - uses fixed player nickname
+!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=YOUR_PLAYER_NICK)
 
-# Stats can search any player
+# Streak command - uses fixed player nickname
+!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=YOUR_PLAYER_NICK)
+
+# Stats command - uses fixed player nickname
+!command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
+```
+
+**Option 2: Using StreamElements custom variable (for multiple streams)**
+
+First, create a custom variable in StreamElements:
+1. Go to StreamElements Dashboard → Chat Commands → Variables
+2. Create a variable named `faceit_player` with value `YOUR_PLAYER_NICK`
+
+Then use it in commands:
+```bash
+# ELO command - uses custom variable
+!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=${faceit_player})
+
+# Streak command - uses custom variable
+!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=${faceit_player})
+
+# Stats command - uses custom variable
+!command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${faceit_player})
+```
+
+**Option 3: Using command parameter (search any player)**
+
+```bash
+# ELO command - accepts player nickname as parameter
+# Usage: !elo (uses default) or !elo s1mple (searches player)
+!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=${1})
+
+# Streak command - accepts player nickname as parameter
+!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=${1})
+
+# Stats command - accepts player nickname as parameter
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${1})
 ```
 
 ### Example Usage
 
+**Using fixed player nickname (Option 1):**
 ```
 Viewer: !elo
-Bot: 2150
+Bot: Elo: 2150. Today -> Win: 3 Lose: 1
 
-Viewer: !streak (from default player)
+Viewer: !streak
 Bot: Últimas 10: W W L W L W W W L W
 
-Viewer: !stats (from default player)
+Viewer: !stats
 Bot: togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+```
 
-Viewer: !stats s1mple (from any player)
+**Using custom variable (Option 2):**
+```
+Viewer: !elo
+Bot: Elo: 2150. Today -> Win: 3 Lose: 1
+(Player is defined by the faceit_player variable)
+```
+
+**Using command parameter (Option 3):**
+```
+Viewer: !elo
+Bot: Elo: 2150. Today -> Win: 3 Lose: 1
+
+Viewer: !elo FENOMENO
+Bot: Elo: 3456. Today -> Win: 2 Lose: 0
+
+Viewer: !streak FENOMENO
+Bot: Últimas 10: W W W L W W W W W W
+
+Viewer: !stats s1mple
 Bot: s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
-
-Viewer: !stats ZywOo (from any player)
-Bot: ZywOo: | ELO: 3100 | Level: 10 | Wins: 2000 | Winrate: 60% | K/D: 1.40 | HS%: 50%
 ```
 
 ## API Endpoints
 
-### `GET /elo`
-Returns the current CS2 ELO rating for the default player.
+### `GET /elo` or `GET /elo?nick=nickname`
+Returns the current CS2 ELO rating with today's win/loss statistics. Supports searching any player via query parameter.
 
-**Example:**
+**Response:** `Elo: 2150. Today -> Win: 3 Lose: 1`
+
+**Includes:**
+- Current ELO rating
+- Wins today (from last 20 matches)
+- Losses today (from last 20 matches)
+
+**Note:** Nicknames are case-insensitive (automatically converted to lowercase).
+
+**Examples:**
 ```bash
+# Default player
 curl https://YOUR_SERVICE_URL/elo
-# 2150
+# Elo: 2150. Today -> Win: 3 Lose: 1
+
+# Search any player
+curl https://YOUR_SERVICE_URL/elo?nick=FENOMENO
+# Elo: 3456. Today -> Win: 2 Lose: 0
+
+curl https://YOUR_SERVICE_URL/elo?nick=fenomeno
+# Elo: 3456. Today -> Win: 2 Lose: 0
 ```
 
 ### `GET /stats` or `GET /stats?player=nickname`
@@ -157,15 +271,25 @@ curl https://YOUR_SERVICE_URL/stats?player=S1MPLE
 # s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 ```
 
-### `GET /streak`
-Returns the last 10 match results (W = Win, L = Loss) for the default player.
+### `GET /streak` or `GET /streak?nick=nickname`
+Returns the last 10 match results (W = Win, L = Loss). Supports searching any player via query parameter.
 
 **Response:** `Últimas 10: W W L W L W W W L W`
 
-**Example:**
+**Note:** Nicknames are case-insensitive (automatically converted to lowercase).
+
+**Examples:**
 ```bash
+# Default player
 curl https://YOUR_SERVICE_URL/streak
 # Últimas 10: W L W W W L W L W W
+
+# Search any player
+curl https://YOUR_SERVICE_URL/streak?nick=FENOMENO
+# Últimas 10: W W W L W W W W W W
+
+curl https://YOUR_SERVICE_URL/streak?nick=fenomeno
+# Últimas 10: W W W L W W W W W W
 ```
 
 ### `GET /health`
