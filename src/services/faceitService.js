@@ -121,73 +121,12 @@ export async function getPlayerStats(playerId) {
 /**
  * Get player match history
  * @param {string} playerId - Player ID
- * @param {number} [limit=10] - Number of matches to retrieve per page
- * @param {number} [maxItems=30] - Maximum total number of matches to fetch
- * @param {boolean} [fetchUntilNotToday=false] - Continue fetching until we find a match not from today
+ * @param {number} [limit=20] - Number of matches to retrieve
  * @returns {Promise<Object>} Match history with all items
  */
-export async function getPlayerHistory(playerId, limit = 10, maxItems = 30, fetchUntilNotToday = false) {
-  const allItems = [];
-  let offset = 0;
-  let hasMore = true;
-  
-  // Get today's date for filtering
-  const now = new Date();
-  const todayYear = now.getUTCFullYear();
-  const todayMonth = now.getUTCMonth();
-  const todayDay = now.getUTCDate();
-
-  while (hasMore && allItems.length < maxItems) {
-    // Calculate how many items we still need
-    const remainingItems = maxItems - allItems.length;
-    const currentLimit = Math.min(limit, remainingItems);
-    
-    const response = await faceitRequest(`/players/${playerId}/history?game=cs2&offset=${offset}&limit=${currentLimit}`);
-    
-    if (response.items && response.items.length > 0) {
-      // Add items up to the max limit
-      const itemsToAdd = response.items.slice(0, maxItems - allItems.length);
-      allItems.push(...itemsToAdd);
-      
-      // If fetchUntilNotToday is true, check if we've passed today's matches
-      if (fetchUntilNotToday) {
-        let foundNonTodayMatch = false;
-        for (const match of itemsToAdd) {
-          if (match.finished_at) {
-            const matchDate = new Date(match.finished_at * 1000);
-            const matchYear = matchDate.getUTCFullYear();
-            const matchMonth = matchDate.getUTCMonth();
-            const matchDay = matchDate.getUTCDate();
-            
-            const isToday = matchYear === todayYear && 
-                           matchMonth === todayMonth && 
-                           matchDay === todayDay;
-            
-            if (!isToday) {
-              foundNonTodayMatch = true;
-              break;
-            }
-          }
-        }
-        
-        if (foundNonTodayMatch) {
-          hasMore = false;
-          break;
-        }
-      }
-      
-      // Check if we should continue fetching
-      if (response.items.length < currentLimit || response.items.length === 0 || allItems.length >= maxItems) {
-        hasMore = false;
-      } else {
-        offset += currentLimit;
-      }
-    } else {
-      hasMore = false;
-    }
-  }
-
-  return { items: allItems };
+export async function getPlayerHistory(playerId, limit = 20) {
+  const response = await faceitRequest(`/players/${playerId}/history?game=cs2&offset=0&limit=${limit}`);
+  return { items: response.items || [] };
 }
 
 /**
@@ -250,15 +189,14 @@ export function processMatchStreak(matches, playerId) {
 }
 
 /**
- * Calculate today's statistics (wins, losses, elo change)
- * @param {Array} matches - Match history array
+ * Calculate today's statistics (wins, losses)
+ * @param {Array} matches - Match history array (up to 20 most recent)
  * @param {string} playerId - Player ID
- * @param {number} currentElo - Current ELO rating
- * @returns {Object} Today's stats { wins, losses, eloChange }
+ * @returns {Object} Today's stats { wins, losses }
  */
-export function calculateTodayStats(matches, playerId, currentElo) {
+export function calculateTodayStats(matches, playerId) {
   if (!matches || matches.length === 0) {
-    return { wins: 0, losses: 0, eloChange: 0 };
+    return { wins: 0, losses: 0 };
   }
 
   // Get today's date (calendar day in UTC)
@@ -269,22 +207,19 @@ export function calculateTodayStats(matches, playerId, currentElo) {
 
   let wins = 0;
   let losses = 0;
-  const todayMatches = [];
 
-  // Filter matches from today
+  // Count wins and losses from today
   matches.forEach(match => {
     if (!match.finished_at) return;
     
     // FACEIT uses Unix timestamp in seconds
-    const matchTimestamp = match.finished_at * 1000;
-    const matchDate = new Date(matchTimestamp);
+    const matchDate = new Date(match.finished_at * 1000);
     
     // Check if match was played today (same calendar day in UTC)
     const matchYear = matchDate.getUTCFullYear();
     const matchMonth = matchDate.getUTCMonth();
     const matchDay = matchDate.getUTCDate();
     
-    // Match is from today if it's the same calendar day
     const isToday = matchYear === todayYear && 
                     matchMonth === todayMonth && 
                     matchDay === todayDay;
@@ -309,52 +244,10 @@ export function calculateTodayStats(matches, playerId, currentElo) {
         } else {
           losses++;
         }
-
-        // Store match with elo info if available
-        const playerTeamData = teams[playerTeam];
-        if (playerTeamData.players) {
-          const playerData = playerTeamData.players.find(p => p.player_id === playerId);
-          if (playerData) {
-            // Try different possible field names for elo data
-            const eloAfter = playerData.elo_after || playerData.elo || playerData.faceit_elo || null;
-            const eloBefore = playerData.elo_before || playerData.elo_start || null;
-            
-            todayMatches.push({
-              won,
-              eloAfter,
-              eloBefore,
-              timestamp: match.finished_at
-            });
-          }
-        }
       }
     }
   });
 
-  // Calculate elo change
-  let eloChange = 0;
-  
-  if (todayMatches.length > 0) {
-    // Sort matches by timestamp (oldest first) to ensure correct order
-    todayMatches.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-    
-    const oldestMatch = todayMatches[0];
-    const newestMatch = todayMatches[todayMatches.length - 1];
-    
-    // Try to get precise elo change from API data
-    if (oldestMatch.eloBefore !== null && newestMatch.eloAfter !== null) {
-      // Calculate from oldest match before to newest match after
-      eloChange = newestMatch.eloAfter - oldestMatch.eloBefore;
-    } else if (oldestMatch.eloBefore !== null) {
-      // Calculate from oldest match before to current elo
-      eloChange = currentElo - oldestMatch.eloBefore;
-    } else {
-      // Fallback: estimate based on wins/losses (approximate)
-      // Typical FACEIT elo change: ~20-30 for win, ~20-30 for loss
-      eloChange = (wins * 25) - (losses * 25);
-    }
-  }
-
-  return { wins, losses, eloChange };
+  return { wins, losses };
 }
 

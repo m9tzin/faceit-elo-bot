@@ -18,7 +18,7 @@ const router = express.Router();
 /**
  * GET /elo
  * Returns current CS2 ELO for default player with today's stats
- * Format: Elo: 3776. Today -> Win: 0 Lose: 0 Elo: 0
+ * Format: Elo: 3776. Today -> Win: 0 Lose: 0
  */
 router.get('/', 
   cacheMiddleware('elo'),
@@ -32,22 +32,14 @@ router.get('/',
     const elo = playerData.games.cs2.faceit_elo;
     const playerId = playerData.player_id;
 
-    // Get match history (limit to 30 matches for performance)
-    // Stops when finding a match not from today or when reaching 30 matches
-    const historyData = await getPlayerHistory(playerId, 30, 30, true);
+    // Get match history (last 20 matches)
+    const historyData = await getPlayerHistory(playerId, 20);
     
-    // Calculate today's statistics
-    const todayStats = calculateTodayStats(historyData.items, playerId, elo);
-    
-    // Format elo change: 0 without sign, positive with +, negative with -
-    const eloChangeStr = todayStats.eloChange === 0 
-      ? '0' 
-      : todayStats.eloChange > 0 
-        ? `+${todayStats.eloChange}` 
-        : `${todayStats.eloChange}`;
+    // Calculate today's statistics (wins and losses)
+    const todayStats = calculateTodayStats(historyData.items, playerId);
     
     // Format response
-    const response = `Elo: ${elo}. Today -> Win: ${todayStats.wins} Lose: ${todayStats.losses} Elo: ${eloChangeStr}`;
+    const response = `Elo: ${elo}. Today -> Win: ${todayStats.wins} Lose: ${todayStats.losses}`;
     
     res.send(response);
   })
