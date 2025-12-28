@@ -39,24 +39,6 @@ PLAYER_NICKNAME=your_faceit_nickname
 npm start
 ```
 
-Test it:
-```bash
-curl http://localhost:3000/elo
-# Response: 2150
-
-curl http://localhost:3000/elo?nick=FENOMENO
-# Response: 3456
-
-curl http://localhost:3000/stats
-# Response: togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
-
-curl http://localhost:3000/streak
-# Response: Últimas 10: W W L W L W W W L W
-
-curl http://localhost:3000/streak?nick=faceit_player
-# Response: Últimas 10: W L W W W L W L W W
-```
-
 ## Deployment
 
 This service can be deployed on any platform that supports Node.js. Here are some popular options:
@@ -137,42 +119,6 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 
 # Stats command - accepts player nickname as parameter
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${1})
-```
-
-### Example Usage
-
-**Using a fixed player nickname (Option 1):**
-```
-Viewer: !elo
-Bot: 2150
-
-Viewer: !streak
-Bot: Últimas 10: W W L W L W W W L W
-
-Viewer: !stats
-Bot: togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
-```
-
-**Using custom variable (Option 2):**
-```
-Viewer: !elo
-Bot: 2150
-(Player is defined by the faceit_player variable)
-```
-
-**Using command parameter (Option 3):**
-```
-Viewer: !elo
-Bot: 2150
-
-Viewer: !elo FENOMENO
-Bot: 3456
-
-Viewer: !streak togs
-Bot: Últimas 10: W W W L W W W W W W
-
-Viewer: !stats s1mple
-Bot: s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
 ```
 
 ## API Endpoints
