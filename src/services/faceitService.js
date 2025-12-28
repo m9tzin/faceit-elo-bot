@@ -187,3 +187,101 @@ export function processMatchStreak(matches, playerId) {
   return `Últimas 10: ${results.join(' ')}`;
 }
 
+/**
+ * Calculate today's statistics (wins, losses, elo change)
+ * @param {Array} matches - Match history array
+ * @param {string} playerId - Player ID
+ * @param {number} currentElo - Current ELO rating
+ * @returns {Object} Today's stats { wins, losses, eloChange }
+ */
+export function calculateTodayStats(matches, playerId, currentElo) {
+  if (!matches || matches.length === 0) {
+    return { wins: 0, losses: 0, eloChange: 0 };
+  }
+
+  // Get today's date (start of day in UTC)
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const todayTimestamp = today.getTime();
+
+  let wins = 0;
+  let losses = 0;
+  const todayMatches = [];
+
+  // Filter matches from today
+  matches.forEach(match => {
+    if (!match.finished_at) return;
+    
+    // Check if match was played today
+    const matchDate = new Date(match.finished_at * 1000); // FACEIT uses Unix timestamp
+    matchDate.setUTCHours(0, 0, 0, 0);
+    
+    if (matchDate.getTime() === todayTimestamp) {
+      const teams = match.teams;
+      let playerTeam = null;
+
+      // Find which team the player was on
+      if (teams.faction1.players.some(p => p.player_id === playerId)) {
+        playerTeam = 'faction1';
+      } else if (teams.faction2.players.some(p => p.player_id === playerId)) {
+        playerTeam = 'faction2';
+      }
+
+      if (playerTeam) {
+        // Check if player's team won
+        const won = match.results.winner === playerTeam;
+        
+        if (won) {
+          wins++;
+        } else {
+          losses++;
+        }
+
+        // Store match with elo info if available
+        const playerTeamData = teams[playerTeam];
+        if (playerTeamData.players) {
+          const playerData = playerTeamData.players.find(p => p.player_id === playerId);
+          if (playerData) {
+            // Try different possible field names for elo data
+            const eloAfter = playerData.elo_after || playerData.elo || playerData.faceit_elo || null;
+            const eloBefore = playerData.elo_before || playerData.elo_start || null;
+            
+            todayMatches.push({
+              won,
+              eloAfter,
+              eloBefore,
+              timestamp: match.finished_at
+            });
+          }
+        }
+      }
+    }
+  });
+
+  // Calculate elo change
+  let eloChange = 0;
+  
+  if (todayMatches.length > 0) {
+    // Sort matches by timestamp (oldest first) to ensure correct order
+    todayMatches.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    
+    const oldestMatch = todayMatches[0];
+    const newestMatch = todayMatches[todayMatches.length - 1];
+    
+    // Try to get precise elo change from API data
+    if (oldestMatch.eloBefore !== null && newestMatch.eloAfter !== null) {
+      // Calculate from oldest match before to newest match after
+      eloChange = newestMatch.eloAfter - oldestMatch.eloBefore;
+    } else if (oldestMatch.eloBefore !== null) {
+      // Calculate from oldest match before to current elo
+      eloChange = currentElo - oldestMatch.eloBefore;
+    } else {
+      // Fallback: estimate based on wins/losses (approximate)
+      // Typical FACEIT elo change: ~20-30 for win, ~20-30 for loss
+      eloChange = (wins * 25) - (losses * 25);
+    }
+  }
+
+  return { wins, losses, eloChange };
+}
+
