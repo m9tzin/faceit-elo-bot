@@ -121,11 +121,73 @@ export async function getPlayerStats(playerId) {
 /**
  * Get player match history
  * @param {string} playerId - Player ID
- * @param {number} [limit=10] - Number of matches to retrieve
- * @returns {Promise<Object>} Match history
+ * @param {number} [limit=10] - Number of matches to retrieve per page
+ * @param {number} [maxItems=30] - Maximum total number of matches to fetch
+ * @param {boolean} [fetchUntilNotToday=false] - Continue fetching until we find a match not from today
+ * @returns {Promise<Object>} Match history with all items
  */
-export async function getPlayerHistory(playerId, limit = 10) {
-  return await faceitRequest(`/players/${playerId}/history?game=cs2&offset=0&limit=${limit}`);
+export async function getPlayerHistory(playerId, limit = 10, maxItems = 30, fetchUntilNotToday = false) {
+  const allItems = [];
+  let offset = 0;
+  let hasMore = true;
+  
+  // Get today's date for filtering
+  const now = new Date();
+  const todayYear = now.getUTCFullYear();
+  const todayMonth = now.getUTCMonth();
+  const todayDay = now.getUTCDate();
+
+  while (hasMore && allItems.length < maxItems) {
+    // Calculate how many items we still need
+    const remainingItems = maxItems - allItems.length;
+    const currentLimit = Math.min(limit, remainingItems);
+    
+    const response = await faceitRequest(`/players/${playerId}/history?game=cs2&offset=${offset}&limit=${currentLimit}`);
+    
+    if (response.items && response.items.length > 0) {
+      // Add items up to the max limit
+      const itemsToAdd = response.items.slice(0, maxItems - allItems.length);
+      allItems.push(...itemsToAdd);
+      
+      // If fetchUntilNotToday is true, check if we've passed today's matches
+      if (fetchUntilNotToday) {
+        let foundNonTodayMatch = false;
+        for (const match of itemsToAdd) {
+          if (match.finished_at) {
+            const matchDate = new Date(match.finished_at * 1000);
+            const matchYear = matchDate.getUTCFullYear();
+            const matchMonth = matchDate.getUTCMonth();
+            const matchDay = matchDate.getUTCDate();
+            
+            const isToday = matchYear === todayYear && 
+                           matchMonth === todayMonth && 
+                           matchDay === todayDay;
+            
+            if (!isToday) {
+              foundNonTodayMatch = true;
+              break;
+            }
+          }
+        }
+        
+        if (foundNonTodayMatch) {
+          hasMore = false;
+          break;
+        }
+      }
+      
+      // Check if we should continue fetching
+      if (response.items.length < currentLimit || response.items.length === 0 || allItems.length >= maxItems) {
+        hasMore = false;
+      } else {
+        offset += currentLimit;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return { items: allItems };
 }
 
 /**
@@ -199,10 +261,11 @@ export function calculateTodayStats(matches, playerId, currentElo) {
     return { wins: 0, losses: 0, eloChange: 0 };
   }
 
-  // Get today's date (start of day in UTC)
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const todayTimestamp = today.getTime();
+  // Get today's date (calendar day in UTC)
+  const now = new Date();
+  const todayYear = now.getUTCFullYear();
+  const todayMonth = now.getUTCMonth();
+  const todayDay = now.getUTCDate();
 
   let wins = 0;
   let losses = 0;
@@ -212,11 +275,21 @@ export function calculateTodayStats(matches, playerId, currentElo) {
   matches.forEach(match => {
     if (!match.finished_at) return;
     
-    // Check if match was played today
-    const matchDate = new Date(match.finished_at * 1000); // FACEIT uses Unix timestamp
-    matchDate.setUTCHours(0, 0, 0, 0);
+    // FACEIT uses Unix timestamp in seconds
+    const matchTimestamp = match.finished_at * 1000;
+    const matchDate = new Date(matchTimestamp);
     
-    if (matchDate.getTime() === todayTimestamp) {
+    // Check if match was played today (same calendar day in UTC)
+    const matchYear = matchDate.getUTCFullYear();
+    const matchMonth = matchDate.getUTCMonth();
+    const matchDay = matchDate.getUTCDate();
+    
+    // Match is from today if it's the same calendar day
+    const isToday = matchYear === todayYear && 
+                    matchMonth === todayMonth && 
+                    matchDay === todayDay;
+    
+    if (isToday) {
       const teams = match.teams;
       let playerTeam = null;
 
