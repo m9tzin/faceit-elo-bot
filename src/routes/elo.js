@@ -38,8 +38,15 @@ router.get('/',
     // Calculate today's statistics
     const todayStats = calculateTodayStats(historyData.items, playerId, elo);
     
+    // Format elo change: 0 without sign, positive with +, negative with -
+    const eloChangeStr = todayStats.eloChange === 0 
+      ? '0' 
+      : todayStats.eloChange > 0 
+        ? `+${todayStats.eloChange}` 
+        : `${todayStats.eloChange}`;
+    
     // Format response
-    const response = `Elo: ${elo}. Today -> Win: ${todayStats.wins} Lose: ${todayStats.losses} Elo: ${todayStats.eloChange >= 0 ? '+' : ''}${todayStats.eloChange}`;
+    const response = `Elo: ${elo}. Today -> Win: ${todayStats.wins} Lose: ${todayStats.losses} Elo: ${eloChangeStr}`;
     
     res.send(response);
   })
