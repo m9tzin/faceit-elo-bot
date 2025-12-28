@@ -24,10 +24,10 @@ const router = express.Router();
  */
 router.get('/', 
   asyncHandler(async (req, res) => {
-    const playerQuery = req.query.player;
+    const playerQuery = req.query.player?.trim() || null;
     
     // Generate cache key based on player
-    const cacheKey = playerQuery ? `stats:${playerQuery.toLowerCase().trim()}` : 'stats:default';
+    const cacheKey = playerQuery ? `stats:${playerQuery.toLowerCase()}` : 'stats:default';
     
     // Check cache first
     const cachedData = cache.get(cacheKey, config.cache.ttl);

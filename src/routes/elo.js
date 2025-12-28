@@ -1,11 +1,13 @@
 /**
  * ELO route
  * Returns the current ELO for the default player with today's statistics
+ * Supports searching any player via query parameter
  */
 
 import express from 'express';
 import { asyncHandler } from '../middlewares/errorHandler.js';
-import { cacheMiddleware } from '../middlewares/cache.js';
+import { cache } from '../utils/cache.js';
+import { config } from '../config/index.js';
 import { 
   getPlayerData, 
   getPlayerHistory,
@@ -16,14 +18,26 @@ import {
 const router = express.Router();
 
 /**
- * GET /elo
+ * GET /elo?nick=nickname
  * Returns current CS2 ELO for default player with today's stats
+ * Optional query parameter 'nick' to search any player
  * Format: Elo: 3776. Today -> Win: 0 Lose: 0
  */
 router.get('/', 
-  cacheMiddleware('elo'),
   asyncHandler(async (req, res) => {
-    const playerData = await getPlayerData();
+    const playerQuery = req.query.nick?.trim() || null;
+    
+    // Generate cache key based on player
+    const cacheKey = playerQuery ? `elo:${playerQuery.toLowerCase()}` : 'elo:default';
+    
+    // Check cache first
+    const cachedData = cache.get(cacheKey, config.cache.ttl);
+    if (cachedData) {
+      return res.send(cachedData);
+    }
+    
+    // Get player data (uses default player if no query provided)
+    const playerData = await getPlayerData(playerQuery);
     
     if (!hasCS2Data(playerData)) {
       throw new Error('Dados de CS2 não encontrados para o jogador'); // TODO: Translate to English if needed
@@ -40,6 +54,9 @@ router.get('/',
     
     // Format response
     const response = `Elo: ${elo}. Today -> Win: ${todayStats.wins} Lose: ${todayStats.losses}`;
+    
+    // Cache the response
+    cache.set(cacheKey, response);
     
     res.send(response);
   })
