@@ -32,8 +32,9 @@ router.get('/',
     const elo = playerData.games.cs2.faceit_elo;
     const playerId = playerData.player_id;
 
-    // Get match history (fetch more matches to ensure we get all from today)
-    const historyData = await getPlayerHistory(playerId, 100);
+    // Get match history (limit to 30 matches for performance)
+    // Stops when finding a match not from today or when reaching 30 matches
+    const historyData = await getPlayerHistory(playerId, 30, 30, true);
     
     // Calculate today's statistics
     const todayStats = calculateTodayStats(historyData.items, playerId, elo);
