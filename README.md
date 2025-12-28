@@ -42,10 +42,10 @@ npm start
 Test it:
 ```bash
 curl http://localhost:3000/elo
-# Response: Elo: 2150. Today -> Win: 3 Lose: 1
+# Response: 2150
 
 curl http://localhost:3000/elo?nick=FENOMENO
-# Response: Elo: 3456. Today -> Win: 2 Lose: 0
+# Response: 3456
 
 curl http://localhost:3000/stats
 # Response: togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
@@ -53,8 +53,8 @@ curl http://localhost:3000/stats
 curl http://localhost:3000/streak
 # Response: Últimas 10: W W L W L W W W L W
 
-curl http://localhost:3000/streak?nick=FENOMENO
-# Response: Últimas 10: W W W L W W W W W W
+curl http://localhost:3000/streak?nick=faceit_player
+# Response: Últimas 10: W L W W W L W L W W
 ```
 
 ## Deployment
@@ -95,26 +95,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 # Stats command - uses fixed player nickname
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
 ```
-
-**Option 2: Using Nightbot custom variable (for multiple streams)**
-
-First, create a custom variable in Nightbot:
-1. Go to Nightbot Dashboard → Custom Commands → Variables
-2. Create a variable named `faceit_player` with value `YOUR_PLAYER_NICK`
-
-Then use it in commands:
-```bash
-# ELO command - uses custom variable
-!addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=$(faceit_player))
-
-# Streak command - uses custom variable
-!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(faceit_player))
-
-# Stats command - uses custom variable
-!addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(faceit_player))
-```
-
-**Option 3: Using command parameter (search any player)**
+**Option 2: Using command parameter (search any player)**
 
 ```bash
 # ELO command - accepts player nickname as parameter
@@ -144,26 +125,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 # Stats command - uses fixed player nickname
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
 ```
-
-**Option 2: Using StreamElements custom variable (for multiple streams)**
-
-First, create a custom variable in StreamElements:
-1. Go to StreamElements Dashboard → Chat Commands → Variables
-2. Create a variable named `faceit_player` with value `YOUR_PLAYER_NICK`
-
-Then use it in commands:
-```bash
-# ELO command - uses custom variable
-!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=${faceit_player})
-
-# Streak command - uses custom variable
-!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=${faceit_player})
-
-# Stats command - uses custom variable
-!command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${faceit_player})
-```
-
-**Option 3: Using command parameter (search any player)**
+**Option 2: Using command parameter (search any player)**
 
 ```bash
 # ELO command - accepts player nickname as parameter
@@ -179,10 +141,10 @@ Then use it in commands:
 
 ### Example Usage
 
-**Using fixed player nickname (Option 1):**
+**Using a fixed player nickname (Option 1):**
 ```
 Viewer: !elo
-Bot: Elo: 2150. Today -> Win: 3 Lose: 1
+Bot: 2150
 
 Viewer: !streak
 Bot: Últimas 10: W W L W L W W W L W
@@ -194,19 +156,19 @@ Bot: togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%:
 **Using custom variable (Option 2):**
 ```
 Viewer: !elo
-Bot: Elo: 2150. Today -> Win: 3 Lose: 1
+Bot: 2150
 (Player is defined by the faceit_player variable)
 ```
 
 **Using command parameter (Option 3):**
 ```
 Viewer: !elo
-Bot: Elo: 2150. Today -> Win: 3 Lose: 1
+Bot: 2150
 
 Viewer: !elo FENOMENO
-Bot: Elo: 3456. Today -> Win: 2 Lose: 0
+Bot: 3456
 
-Viewer: !streak FENOMENO
+Viewer: !streak togs
 Bot: Últimas 10: W W W L W W W W W W
 
 Viewer: !stats s1mple
@@ -216,14 +178,9 @@ Bot: s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | H
 ## API Endpoints
 
 ### `GET /elo` or `GET /elo?nick=nickname`
-Returns the current CS2 ELO rating with today's win/loss statistics. Supports searching any player via query parameter.
+Returns the current CS2 ELO rating. Supports searching any player via query parameter.
 
-**Response:** `Elo: 2150. Today -> Win: 3 Lose: 1`
-
-**Includes:**
-- Current ELO rating
-- Wins today (from last 20 matches)
-- Losses today (from last 20 matches)
+**Response:** `2150`
 
 **Note:** Nicknames are case-insensitive (automatically converted to lowercase).
 
@@ -231,14 +188,14 @@ Returns the current CS2 ELO rating with today's win/loss statistics. Supports se
 ```bash
 # Default player
 curl https://YOUR_SERVICE_URL/elo
-# Elo: 2150. Today -> Win: 3 Lose: 1
+# 2150
 
 # Search any player
-curl https://YOUR_SERVICE_URL/elo?nick=FENOMENO
-# Elo: 3456. Today -> Win: 2 Lose: 0
+curl https://YOUR_SERVICE_URL/elo?nick=faceit_player
+# 2150
 
-curl https://YOUR_SERVICE_URL/elo?nick=fenomeno
-# Elo: 3456. Today -> Win: 2 Lose: 0
+curl https://YOUR_SERVICE_URL/elo?nick=faceit_player
+# 2150
 ```
 
 ### `GET /stats` or `GET /stats?player=nickname`
@@ -285,11 +242,11 @@ curl https://YOUR_SERVICE_URL/streak
 # Últimas 10: W L W W W L W L W W
 
 # Search any player
-curl https://YOUR_SERVICE_URL/streak?nick=FENOMENO
+curl https://YOUR_SERVICE_URL/streak?nick=faceit_player
 # Últimas 10: W W W L W W W W W W
 
-curl https://YOUR_SERVICE_URL/streak?nick=fenomeno
-# Últimas 10: W W W L W W W W W W
+curl https://YOUR_SERVICE_URL/streak?nick=faceit_player
+# Últimas 10: W L W W W L W L W W
 ```
 
 ### `GET /health`
@@ -328,9 +285,9 @@ src/
 Contributions are welcome! Feel free to open issues or submit pull requests.
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -m 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
 5. Open a Pull Request
 
 ## License

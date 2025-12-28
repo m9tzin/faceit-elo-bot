@@ -46,7 +46,7 @@ app.listen(PORT, () => {
   console.log(`⏱️  Cache TTL: ${config.cache.ttl / 1000}s`);
   console.log(`\nEndpoints:`);
   console.log(`  GET /health - Health check`);
-  console.log(`  GET /elo?nick=<nickname> - Current ELO with today's stats`);
+  console.log(`  GET /elo?nick=<nickname> - Current ELO rating`);
   console.log(`  GET /stats?player=<nickname> - Player statistics`);
   console.log(`  GET /streak?nick=<nickname> - Last 10 matches`);
 });
