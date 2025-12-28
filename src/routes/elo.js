@@ -1,18 +1,24 @@
 /**
  * ELO route
- * Returns the current ELO for the default player
+ * Returns the current ELO for the default player with today's statistics
  */
 
 import express from 'express';
 import { asyncHandler } from '../middlewares/errorHandler.js';
 import { cacheMiddleware } from '../middlewares/cache.js';
-import { getPlayerData, hasCS2Data } from '../services/faceitService.js';
+import { 
+  getPlayerData, 
+  getPlayerHistory,
+  hasCS2Data,
+  calculateTodayStats 
+} from '../services/faceitService.js';
 
 const router = express.Router();
 
 /**
  * GET /elo
- * Returns current CS2 ELO for default player
+ * Returns current CS2 ELO for default player with today's stats
+ * Format: Elo: 3776. Today -> Win: 0 Lose: 0 Elo: 0
  */
 router.get('/', 
   cacheMiddleware('elo'),
@@ -24,7 +30,18 @@ router.get('/',
     }
 
     const elo = playerData.games.cs2.faceit_elo;
-    res.send(elo.toString());
+    const playerId = playerData.player_id;
+
+    // Get match history (fetch more matches to ensure we get all from today)
+    const historyData = await getPlayerHistory(playerId, 100);
+    
+    // Calculate today's statistics
+    const todayStats = calculateTodayStats(historyData.items, playerId, elo);
+    
+    // Format response
+    const response = `Elo: ${elo}. Today -> Win: ${todayStats.wins} Lose: ${todayStats.losses} Elo: ${todayStats.eloChange >= 0 ? '+' : ''}${todayStats.eloChange}`;
+    
+    res.send(response);
   })
 );
 
