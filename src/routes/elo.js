@@ -1,6 +1,6 @@
 /**
  * ELO route
- * Returns the current ELO for the default player with today's statistics
+ * Returns the current ELO for the default player
  * Supports searching any player via query parameter
  */
 
@@ -10,18 +10,16 @@ import { cache } from '../utils/cache.js';
 import { config } from '../config/index.js';
 import { 
   getPlayerData, 
-  getPlayerHistory,
-  hasCS2Data,
-  calculateTodayStats 
+  hasCS2Data
 } from '../services/faceitService.js';
 
 const router = express.Router();
 
 /**
  * GET /elo?nick=nickname
- * Returns current CS2 ELO for default player with today's stats
+ * Returns current CS2 ELO for default player
  * Optional query parameter 'nick' to search any player
- * Format: Elo: 3776. Today -> Win: 0 Lose: 0
+ * Format: 3776
  */
 router.get('/', 
   asyncHandler(async (req, res) => {
@@ -44,16 +42,9 @@ router.get('/',
     }
 
     const elo = playerData.games.cs2.faceit_elo;
-    const playerId = playerData.player_id;
-
-    // Get match history (last 20 matches)
-    const historyData = await getPlayerHistory(playerId, 20);
     
-    // Calculate today's statistics (wins and losses)
-    const todayStats = calculateTodayStats(historyData.items, playerId);
-    
-    // Format response
-    const response = `Elo: ${elo}. Today -> Win: ${todayStats.wins} Lose: ${todayStats.losses}`;
+    // Format response (just the ELO number)
+    const response = elo.toString();
     
     // Cache the response
     cache.set(cacheKey, response);
