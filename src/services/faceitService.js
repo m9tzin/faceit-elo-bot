@@ -185,6 +185,6 @@ export function processMatchStreak(matches, playerId) {
     return won ? 'W' : 'L';
   });
 
-  return `Últimas 10: ${results.join(' ')}`;
+  return `Últimas 10 (mais recente → antiga): ${results.join(' ')}`;
 }
 
