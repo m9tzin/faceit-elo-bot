@@ -3,6 +3,10 @@
  * Centralizes all environment variables and app settings
  */
 
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+dotenv.config();
+
 export const config = {
   // Server configuration
   port: process.env.PORT || 3000,
