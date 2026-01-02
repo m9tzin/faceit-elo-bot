@@ -140,6 +140,7 @@ export function hasCS2Data(playerData) {
 
 /**
  * Format player statistics for display
+ * Follows Faceit Tracker format: ELO | Level | Avg Kills | K/D | HS% | Winrate
  * @param {Object} playerData - Player data
  * @param {Object} statsData - Statistics data
  * @returns {string} Formatted statistics string
@@ -147,14 +148,29 @@ export function hasCS2Data(playerData) {
 export function formatStats(playerData, statsData) {
   const lifetime = statsData.lifetime;
   
+  // Extract values with fallbacks
+  const elo = playerData.games.cs2.faceit_elo || 0;
+  const level = playerData.games.cs2.skill_level || 0;
+  const kd = lifetime['Average K/D Ratio'] || 0;
+  const hsPercent = lifetime['Average Headshots %'] || 0;
+  const winrate = lifetime['Win Rate %'] || 0;
+  
+  // Calculate Average Kills per Match (like Faceit Tracker)
+  const totalKills = parseFloat(lifetime['Total Kills with extended stats'] || 0);
+  const totalMatches = parseFloat(lifetime['Total Matches'] || lifetime['Matches'] || 1);
+  const avgKills = totalMatches > 0 ? totalKills / totalMatches : 0;
+  
+  // Format Average Kills to one decimal place
+  const formattedAvgKills = avgKills.toFixed(1);
+  
   return [
     `${playerData.nickname}:`,
-    `ELO: ${playerData.games.cs2.faceit_elo}`,
-    `Level: ${playerData.games.cs2.skill_level}`,
-    `Wins: ${lifetime['Wins'] || 0}`,
-    `Winrate: ${lifetime['Win Rate %'] || 0}%`,
-    `K/D: ${lifetime['Average K/D Ratio'] || 0}`,
-    `HS%: ${lifetime['Average Headshots %'] || 0}%`
+    `ELO: ${elo}`,
+    `Level: ${level}`,
+    `Avg Kills: ${formattedAvgKills}`,
+    `K/D: ${kd}`,
+    `HS%: ${hsPercent}%`,
+    `Winrate: ${winrate}%`
   ].join(' | ');
 }
 
