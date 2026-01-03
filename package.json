@@ -33,6 +33,7 @@
   },
   "homepage": "https://github.com/m9tzin/faceit-elo-bot#readme",
   "dependencies": {
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "node-fetch": "^3.3.2"
   }
