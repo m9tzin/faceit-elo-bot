@@ -59,7 +59,7 @@ This service can be deployed on any platform that supports Node.js. Here are som
 
 ## Twitch Integration
 
-Add commands in your Twitch chat:
+Add commands in your Twitch chat, if you use Nightbot, StreamElements or other Twitch bot:
 
 ### Nightbot
 
@@ -85,9 +85,11 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 !addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=$(1))
 
 # Streak command - accepts player nickname as parameter
+# Usage: !streak (uses default) or !streak s1mple (searches player)
 !addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(1))
 
 # Stats command - accepts player nickname as parameter
+# Usage: !stats (uses default) or !stats s1mple (searches player)
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
 ```
 
@@ -121,6 +123,15 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${1})
 ```
 
+# Recommended Commands for your Twitch chat:
+
+```bash
+** If you use Nightbot: **
+!addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=faceit_player)
+!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=faceit_player)
+!addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${1}) 
+# Usage: !stats s1mple (searches any faceit player) 
+```
 ## API Endpoints
 
 ### `GET /elo` or `GET /elo?nick=nickname`
