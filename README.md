@@ -114,13 +114,13 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 ```bash
 # ELO command - accepts player nickname as parameter
 # Usage: !elo (uses default) or !elo s1mple (searches player)
-!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=${1})
+!command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=$(1))
 
 # Streak command - accepts player nickname as parameter
-!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=${1})
+!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(1))
 
 # Stats command - accepts player nickname as parameter
-!command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${1})
+!command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
 ```
 
 # Recommended Commands for your Twitch chat:
@@ -129,7 +129,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 ** If you use Nightbot: **
 !addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=faceit_player)
 !addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=faceit_player)
-!addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=${1}) 
+!addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1)) 
 # Usage: !stats s1mple (searches any faceit player) 
 ```
 ## API Endpoints
@@ -158,13 +158,13 @@ curl https://YOUR_SERVICE_URL/elo?nick=faceit_player
 ### `GET /stats` or `GET /stats?player=nickname`
 Returns comprehensive player statistics. Supports searching any player via query parameter.
 
-**Response:** `nickname: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%`
+**Response:** `nickname: | ELO: 2150 | Level: 10 | Avg Kills: 18.2 | K/D: 1.25 | HS%: 48% | Winrate: 55%`
 
 **Includes:**
 - Player nickname
 - Current ELO
 - Skill level (1-10)
-- Total wins
+- Average kills per match
 - Win rate percentage
 - K/D ratio
 - Headshot percentage
@@ -175,14 +175,14 @@ Returns comprehensive player statistics. Supports searching any player via query
 ```bash
 # Default player
 curl https://YOUR_SERVICE_URL/stats
-# togs: | ELO: 2150 | Level: 10 | Wins: 678 | Winrate: 55% | K/D: 1.25 | HS%: 48%
+# togs: | ELO: 2150 | Level: 10 | Avg Kills: 18.2 | K/D: 1.25 | HS%: 48% | Winrate: 55%
 
 # Search any player (case-insensitive)
 curl https://YOUR_SERVICE_URL/stats?player=s1mple
-# s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+# s1mple: | ELO: 3250 | Level: 10 | Avg Kills: 18.4 | K/D: 1.45 | HS%: 52% | Winrate: 65%
 
 curl https://YOUR_SERVICE_URL/stats?player=S1MPLE
-# s1mple: | ELO: 3250 | Level: 10 | Wins: 2500 | Winrate: 65% | K/D: 1.45 | HS%: 52%
+# s1mple: | ELO: 3250 | Level: 10 | Avg Kills: 18.4 | K/D: 1.45 | HS%: 52% | Winrate: 65%
 ```
 
 ### `GET /streak` or `GET /streak?nick=nickname`
