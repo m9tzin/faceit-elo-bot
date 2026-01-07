@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Exemplo: v1.0.0, v2.1.3, etc
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: 📦 Create GitHub Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Busca todo histórico para gerar changelog
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      
+      # 🏷️ Extrair versão da tag
+      - name: 🏷️ Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "📌 Creating release for version: $VERSION"
+      
+      - name: 📝 Generate changelog
+        id: changelog
+        run: |
+          echo "Generating changelog from git commits..."
+          
+          # Pega a tag anterior
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found, showing all commits"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Previous tag: $PREVIOUS_TAG"
+            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Salvar changelog
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: 🚀 Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          release_name: Release ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## 🚀 FACEIT ELO Bot - ${{ steps.version.outputs.VERSION }}
+            
+            ### 📋 Changes in this Release
+            
+            ${{ steps.changelog.outputs.CHANGELOG }}
+            
+            ---
+            
+            ### 📦 Installation
+            
+            ```bash
+            git clone https://github.com/m9tzin/faceit-elo-bot.git
+            cd faceit-elo-bot
+            git checkout ${{ steps.version.outputs.VERSION }}
+            npm install
+            ```
+            
+            ### ⚙️ Configuration
+            
+            Create a `.env` file:
+            ```env
+            FACEIT_KEY=your_faceit_api_key
+            PLAYER_NICKNAME=your_nickname
+            PORT=3000
+            ```
+            
+            ### 🚀 Run
+            
+            ```bash
+            npm start
+            ```
+            
+            ---
+            
+            **Full Changelog**: https://github.com/m9tzin/faceit-elo-bot/compare/${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+      
+      - name: ✅ Release created
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════╗"
+          echo "║   🎉 RELEASE CREATED SUCCESSFULLY! 🎉  ║"
+          echo "╚════════════════════════════════════════╝"
+          echo ""
+          echo "📌 Version: ${{ steps.version.outputs.VERSION }}"
+          echo "🔗 Check it out: https://github.com/m9tzin/faceit-elo-bot/releases"
+          echo ""
+

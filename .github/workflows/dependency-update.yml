@@ -1,0 +1,68 @@
+name: Dependency Update Check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check-updates:
+    name: 🔍 Check for Dependency Updates
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      
+      - name: 📦 Install current dependencies
+        run: npm ci
+      
+      - name: 📊 Check for outdated packages
+        run: |
+          echo ""
+          echo "╔═══════════════════════════════════════╗"
+          echo "║    OUTDATED PACKAGES CHECK            ║"
+          echo "╚═══════════════════════════════════════╝"
+          echo ""
+          npm outdated || true
+          echo ""
+          echo "💡 To update packages:"
+          echo "   - npm update          (safe updates)"
+          echo "   - npm outdated        (check versions)"
+          echo "   - npm install pkg@latest  (major updates)"
+          echo ""
+      
+      - name: 🔒 Security vulnerabilities check
+        run: |
+          echo ""
+          echo "╔═══════════════════════════════════════╗"
+          echo "║    SECURITY AUDIT                     ║"
+          echo "╚═══════════════════════════════════════╝"
+          echo ""
+          npm audit || true
+          echo ""
+          echo "💡 To fix vulnerabilities:"
+          echo "   - npm audit fix       (automatic fixes)"
+          echo "   - npm audit fix --force  (may break changes)"
+          echo ""
+      
+      - name: 📈 Dependency information
+        run: |
+          echo ""
+          echo "╔═══════════════════════════════════════╗"
+          echo "║    DEPENDENCY INFORMATION             ║"
+          echo "╚═══════════════════════════════════════╝"
+          echo ""
+          echo "📦 Current dependencies:"
+          npm list --depth=0
+          echo ""
+          echo "📊 Dependency stats:"
+          echo "  - Total packages: $(npm list --all 2>/dev/null | grep -c "├\|└" || echo "N/A")"
+          echo "  - node_modules size: $(du -sh node_modules 2>/dev/null | cut -f1)"
+          echo ""
+

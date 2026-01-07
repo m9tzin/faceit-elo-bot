@@ -1,0 +1,84 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  code-quality:
+    name: 📊 Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Busca todo histórico para análise completa
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: 📦 Install dependencies
+        run: npm ci
+      
+      - name: 🔍 Check for console.log statements
+        run: |
+          echo "Looking for console.log statements in source code..."
+          if grep -r "console\.log" src/ --exclude-dir=node_modules --exclude-dir=.git; then
+            echo ""
+            echo "⚠️ Warning: console.log statements found in code"
+            echo "💡 Consider using a proper logging library for production"
+          else
+            echo "✅ No console.log statements found"
+          fi
+        continue-on-error: true
+      
+      - name: 📏 Check file sizes
+        run: |
+          echo ""
+          echo "📊 Top 10 largest JavaScript files:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          find src -type f -name "*.js" -exec wc -l {} + | sort -rn | head -10
+          echo ""
+          echo "💡 Files with 300+ lines might need refactoring"
+      
+      - name: 📈 Code Statistics
+        run: |
+          echo ""
+          echo "╔═══════════════════════════════════════╗"
+          echo "║        CODE STATISTICS                ║"
+          echo "╚═══════════════════════════════════════╝"
+          echo ""
+          echo "📁 Total JS files: $(find src -name '*.js' | wc -l)"
+          echo "📝 Total lines of code: $(find src -name '*.js' -exec cat {} + | wc -l)"
+          echo "📊 Average lines per file: $(echo "scale=0; $(find src -name '*.js' -exec cat {} + | wc -l) / $(find src -name '*.js' | wc -l)" | bc)"
+          echo ""
+          echo "📦 Dependencies:"
+          echo "  - Production: $(node -e "console.log(Object.keys(require('./package.json').dependencies || {}).length)")"
+          echo "  - Development: $(node -e "console.log(Object.keys(require('./package.json').devDependencies || {}).length)")"
+          echo ""
+      
+      - name: 📝 Find TODO comments
+        run: |
+          echo "🔍 Searching for TODO/FIXME comments..."
+          if grep -rn "TODO\|FIXME" src/ --exclude-dir=node_modules --exclude-dir=.git; then
+            echo ""
+            echo "📝 TODO/FIXME comments found above"
+          else
+            echo "✅ No TODO/FIXME comments found"
+          fi
+        continue-on-error: true
+      
+      - name: 📦 Check dependencies size
+        run: |
+          echo ""
+          echo "📦 Dependency installation size:"
+          du -sh node_modules 2>/dev/null || echo "node_modules not found"
+          echo ""
+          echo "💡 Smaller dependencies = faster deployments"
+

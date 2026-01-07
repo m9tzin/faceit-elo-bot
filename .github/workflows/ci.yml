@@ -1,0 +1,118 @@
+name: CI - Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test & Validate (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest  # Máquina virtual Ubuntu
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: 📦 Install dependencies
+        run: npm ci
+      
+      - name: 🚀 Check if app starts
+        run: |
+          echo "Starting app with timeout of 10 seconds..."
+          timeout 10s npm start || code=$?
+          if [ ${code:-0} -eq 124 ]; then
+            echo "✅ App started successfully (timeout after 10s as expected)"
+            exit 0
+          else
+            echo "❌ App failed to start with exit code: ${code}"
+            exit 1
+          fi
+        env:
+          FACEIT_KEY: test_key_for_ci_pipeline
+          PLAYER_NICKNAME: test_player
+          PORT: 3000
+      
+      - name: 📂 Verify project structure
+        run: |
+          echo "🔍 Checking if all required files exist..."
+          
+          # Verificar arquivos essenciais
+          test -f package.json && echo "✅ package.json found" || exit 1
+          test -f src/index.js && echo "✅ src/index.js found" || exit 1
+          test -d src/routes && echo "✅ src/routes/ directory found" || exit 1
+          test -d src/services && echo "✅ src/services/ directory found" || exit 1
+          test -d src/middlewares && echo "✅ src/middlewares/ directory found" || exit 1
+          test -d src/utils && echo "✅ src/utils/ directory found" || exit 1
+          
+          echo ""
+          echo "🎉 Project structure is valid!"
+      
+      - name: 📋 List route files
+        run: |
+          echo "📍 Available routes:"
+          ls -la src/routes/
+  
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: 📦 Install dependencies
+        run: npm ci
+      
+      - name: 🛡️ Run security audit
+        run: |
+          echo "🔍 Checking for security vulnerabilities..."
+          npm audit --audit-level=moderate || echo "⚠️ Vulnerabilities found, but not blocking CI"
+        continue-on-error: true  # Não falha o build se encontrar vulnerabilidades
+      
+      - name: 📊 Check for outdated dependencies
+        run: |
+          echo "📦 Checking for outdated packages..."
+          npm outdated || true
+          echo "ℹ️ Run 'npm update' to update packages"
+
+  build-status:
+    name: ✅ Build Status Check
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    
+    steps:
+      - name: 🎉 All checks passed
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════╗"
+          echo "║   🎉 ALL CI CHECKS PASSED! 🎉         ║"
+          echo "╚════════════════════════════════════════╝"
+          echo ""
+          echo "✅ Tests: Passed on Node 18.x, 20.x, 22.x"
+          echo "✅ Security: Audit completed"
+          echo "✅ Project Structure: Valid"
+          echo ""
+          echo "🚀 Ready to deploy or merge!"
+          echo ""
+

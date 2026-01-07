@@ -1,5 +1,10 @@
 # FACEIT ELO Bot for Twitch.tv Chatbots
 
+[![CI](https://github.com/m9tzin/faceit-elo-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/m9tzin/faceit-elo-bot/actions/workflows/ci.yml)
+[![Code Quality](https://github.com/m9tzin/faceit-elo-bot/actions/workflows/code-quality.yml/badge.svg)](https://github.com/m9tzin/faceit-elo-bot/actions/workflows/code-quality.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen)](https://nodejs.org)
+
 A simple Express.js service that fetches and displays a FACEIT player's CS2 ELO rating, designed to be used with Twitch chat bots via URL fetch commands.
 
 ## Features
