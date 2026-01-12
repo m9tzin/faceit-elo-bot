@@ -1,6 +1,6 @@
 /**
  * Stats route
- * Returns comprehensive player statistics
+ * Returns comprehensive player statistics based on last 30 matches
  * Supports searching any player via query parameter
  */
 
@@ -10,9 +10,9 @@ import { cache } from '../utils/cache.js';
 import { config } from '../config/index.js';
 import { 
   getPlayerData, 
-  getPlayerStats, 
   hasCS2Data,
-  formatStats 
+  calculateLast30MatchesStats,
+  formatStatsFromLast30 
 } from '../services/faceitService.js';
 
 const router = express.Router();
@@ -40,14 +40,14 @@ router.get('/',
     const playerData = await getPlayerData(playerQuery);
     
     if (!hasCS2Data(playerData)) {
-      throw new Error('Dados de CS2 não encontrados para o jogador'); // TODO: Translate to English if needed
+      throw new Error('Dados de CS2 não encontrados para o jogador');
     }
 
-    // Get player statistics
-    const statsData = await getPlayerStats(playerData.player_id);
+    // Calculate statistics from last 30 matches
+    const calculatedStats = await calculateLast30MatchesStats(playerData.player_id);
     
     // Format and send response
-    const formattedStats = formatStats(playerData, statsData);
+    const formattedStats = formatStatsFromLast30(playerData, calculatedStats);
     
     // Cache the response
     cache.set(cacheKey, formattedStats);

@@ -121,12 +121,113 @@ export async function getPlayerStats(playerId) {
 /**
  * Get player match history
  * @param {string} playerId - Player ID
- * @param {number} [limit=20] - Number of matches to retrieve
+ * @param {number} [limit=30] - Number of matches to retrieve
  * @returns {Promise<Object>} Match history with all items
  */
-export async function getPlayerHistory(playerId, limit = 20) {
+export async function getPlayerHistory(playerId, limit = 30) {
   const response = await faceitRequest(`/players/${playerId}/history?game=cs2&offset=0&limit=${limit}`);
   return { items: response.items || [] };
+}
+
+/**
+ * Get match statistics by match ID
+ * @param {string} matchId - Match ID
+ * @returns {Promise<Object|null>} Match statistics or null if error
+ */
+async function getMatchStats(matchId) {
+  try {
+    return await faceitRequest(`/matches/${matchId}/stats`, 6000);
+  } catch (error) {
+    // Return null if match stats not available
+    return null;
+  }
+}
+
+/**
+ * Calculate statistics from last 30 matches
+ * @param {string} playerId - Player ID
+ * @returns {Promise<Object>} Calculated statistics
+ */
+export async function calculateLast30MatchesStats(playerId) {
+  // Get last 30 matches
+  const historyData = await getPlayerHistory(playerId, 30);
+  const matches = historyData.items;
+  
+  if (!matches || matches.length === 0) {
+    return {
+      avgKills: 0,
+      kd: 0,
+      hsPercent: 0,
+      winrate: 0
+    };
+  }
+
+  // Fetch match stats in parallel
+  const matchStatsPromises = matches.map(match => getMatchStats(match.match_id));
+  const matchStatsResults = await Promise.all(matchStatsPromises);
+  
+  let totalKills = 0;
+  let totalDeaths = 0;
+  let totalHeadshots = 0;
+  let totalHeadshotKills = 0;
+  let wins = 0;
+  let validMatches = 0;
+
+  // Process each match
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i];
+    const matchStats = matchStatsResults[i];
+    
+    if (!matchStats || !matchStats.rounds || matchStats.rounds.length === 0) {
+      continue;
+    }
+
+    // Find player team
+    let playerTeam = null;
+    if (match.teams.faction1.players.some(p => p.player_id === playerId)) {
+      playerTeam = 'faction1';
+    } else if (match.teams.faction2.players.some(p => p.player_id === playerId)) {
+      playerTeam = 'faction2';
+    }
+    
+    if (!playerTeam) continue;
+
+    // Check win
+    if (match.results.winner === playerTeam) {
+      wins++;
+    }
+
+    // Get player stats from the match
+    const roundData = matchStats.rounds[0]; // Use first round to get player stats
+    if (!roundData || !roundData.teams) continue;
+
+    const teamData = roundData.teams.find(t => t.team_id === match.teams[playerTeam].team_id);
+    if (!teamData || !teamData.players) continue;
+
+    const playerData = teamData.players.find(p => p.player_id === playerId);
+    if (!playerData || !playerData.player_stats) continue;
+
+    const stats = playerData.player_stats;
+    totalKills += parseInt(stats['Kills'] || 0);
+    totalDeaths += parseInt(stats['Deaths'] || 0);
+    totalHeadshotKills += parseInt(stats['Headshots'] || 0);
+    totalHeadshots += parseInt(stats['Headshots %'] || 0);
+    
+    validMatches++;
+  }
+
+  // Calculate averages
+  const avgKills = validMatches > 0 ? (totalKills / validMatches).toFixed(1) : '0.0';
+  const kd = totalDeaths > 0 ? (totalKills / totalDeaths).toFixed(2) : totalKills.toFixed(2);
+  const hsPercent = validMatches > 0 ? Math.round(totalHeadshots / validMatches) : 0;
+  const winrate = matches.length > 0 ? Math.round((wins / matches.length) * 100) : 0;
+
+  return {
+    avgKills,
+    kd,
+    hsPercent,
+    winrate
+  };
 }
 
 /**
@@ -139,38 +240,24 @@ export function hasCS2Data(playerData) {
 }
 
 /**
- * Format player statistics for display
+ * Format player statistics for display (based on last 30 matches)
  * Follows Faceit Tracker format: ELO | Level | Avg Kills | K/D | HS% | Winrate
  * @param {Object} playerData - Player data
- * @param {Object} statsData - Statistics data
+ * @param {Object} calculatedStats - Calculated statistics from last 30 matches
  * @returns {string} Formatted statistics string
  */
-export function formatStats(playerData, statsData) {
-  const lifetime = statsData.lifetime;
-  
-  // Extract values with fallbacks
+export function formatStatsFromLast30(playerData, calculatedStats) {
   const elo = playerData.games.cs2.faceit_elo || 0;
   const level = playerData.games.cs2.skill_level || 0;
-  const kd = lifetime['Average K/D Ratio'] || 0;
-  const hsPercent = lifetime['Average Headshots %'] || 0;
-  const winrate = lifetime['Win Rate %'] || 0;
-  
-  // Calculate Average Kills per Match (like Faceit Tracker)
-  const totalKills = parseFloat(lifetime['Total Kills with extended stats'] || 0);
-  const totalMatches = parseFloat(lifetime['Total Matches'] || lifetime['Matches'] || 1);
-  const avgKills = totalMatches > 0 ? totalKills / totalMatches : 0;
-  
-  // Format Average Kills to one decimal place
-  const formattedAvgKills = avgKills.toFixed(1);
   
   return [
     `${playerData.nickname}:`,
     `ELO: ${elo}`,
     `Level: ${level}`,
-    `Avg Kills: ${formattedAvgKills}`,
-    `K/D: ${kd}`,
-    `HS%: ${hsPercent}%`,
-    `Winrate: ${winrate}%`
+    `Avg Kills: ${calculatedStats.avgKills}`,
+    `K/D: ${calculatedStats.kd}`,
+    `HS%: ${calculatedStats.hsPercent}%`,
+    `Winrate: ${calculatedStats.winrate}%`
   ].join(' | ');
 }
 
