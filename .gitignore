@@ -70,6 +70,3 @@ config.local.js
 *.key
 *.pem
 *.cert
-
-# Compliance
-COMPLIANCE.md
