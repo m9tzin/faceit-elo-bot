@@ -217,7 +217,7 @@ export async function calculateLast30MatchesStats(playerId) {
   }
 
   // Calculate averages
-  const avgKills = validMatches > 0 ? (totalKills / validMatches).toFixed(1) : '0.0';
+  const avgKills = validMatches > 0 ? Math.round(totalKills / validMatches) : 0;
   const kd = totalDeaths > 0 ? (totalKills / totalDeaths).toFixed(2) : totalKills.toFixed(2);
   const hsPercent = validMatches > 0 ? Math.round(totalHeadshots / validMatches) : 0;
   const winrate = matches.length > 0 ? Math.round((wins / matches.length) * 100) : 0;
