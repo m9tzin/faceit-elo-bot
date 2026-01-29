@@ -10,7 +10,8 @@ import { cache } from '../utils/cache.js';
 import { config } from '../config/index.js';
 import { 
   getPlayerData, 
-  hasCS2Data
+  hasCS2Data,
+  calculateTodayStats
 } from '../services/faceitService.js';
 
 const router = express.Router();
@@ -38,13 +39,17 @@ router.get('/',
     const playerData = await getPlayerData(playerQuery);
     
     if (!hasCS2Data(playerData)) {
-      throw new Error('Dados de CS2 não encontrados para o jogador'); // TODO: Translate to English if needed
+      throw new Error('Dados de CS2 não encontrados para o jogador');
     }
 
     const elo = playerData.games.cs2.faceit_elo;
     
-    // Format response (just the ELO number)
-    const response = elo.toString();
+    // Calculate today's stats (W/L and ELO diff)
+    const todayStats = await calculateTodayStats(playerData.player_id, elo);
+    
+    // Format response: ELO, W: X, L: Y, Elo diff: +/-Z
+    const eloDiffSign = todayStats.eloDiff >= 0 ? '+' : '';
+    const response = `${elo}, W: ${todayStats.wins}, L: ${todayStats.losses}, Elo diff: ${eloDiffSign}${todayStats.eloDiff}`;
     
     // Cache the response
     cache.set(cacheKey, response);
