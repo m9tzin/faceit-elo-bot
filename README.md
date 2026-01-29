@@ -77,7 +77,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 !addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=YOUR_PLAYER_NICK)
 
 # Streak command - uses fixed player nickname
-!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=YOUR_PLAYER_NICK)
+!addcom !wl $(urlfetch https://YOUR_SERVICE_URL/streak?nick=YOUR_PLAYER_NICK)
 
 # Stats command - uses fixed player nickname
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
@@ -90,8 +90,8 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 !addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=$(1))
 
 # Streak command - accepts player nickname as parameter
-# Usage: !streak (uses default) or !streak s1mple (searches player)
-!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(1))
+# Usage: !wl (uses default) or !wl s1mple (searches player)
+!addcom !wl $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(1))
 
 # Stats command - accepts player nickname as parameter
 # Usage: !stats (uses default) or !stats s1mple (searches player)
@@ -109,7 +109,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 !command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=YOUR_PLAYER_NICK)
 
 # Streak command - uses fixed player nickname
-!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=YOUR_PLAYER_NICK)
+!command add !wl $(urlfetch https://YOUR_SERVICE_URL/streak?nick=YOUR_PLAYER_NICK)
 
 # Stats command - uses fixed player nickname
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
@@ -122,18 +122,18 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 !command add !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=$(1))
 
 # Streak command - accepts player nickname as parameter
-!command add !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(1))
+!command add !wl $(urlfetch https://YOUR_SERVICE_URL/streak?nick=$(1))
 
 # Stats command - accepts player nickname as parameter
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
-```
+```streak
 
 # Recommended Commands for your Twitch chat:
 
 ```bash
 ** If you use Nightbot: **
 !addcom !elo $(urlfetch https://YOUR_SERVICE_URL/elo?nick=faceit_player)
-!addcom !streak $(urlfetch https://YOUR_SERVICE_URL/streak?nick=faceit_player)
+!addcom !wl $(urlfetch https://YOUR_SERVICE_URL/streak?nick=faceit_player)
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1)) 
 # Usage: !stats s1mple (searches any faceit player) 
 ```
