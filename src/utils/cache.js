@@ -60,3 +60,59 @@ class Cache {
 // Export singleton instance
 export const cache = new Cache();
 
+/**
+ * Session ELO Cache
+ * Stores the initial ELO for each player's session to calculate accurate ELO diff
+ */
+class SessionEloCache {
+  constructor() {
+    // Map of playerId -> { sessionStartTime, initialElo }
+    this.sessions = new Map();
+  }
+
+  /**
+   * Get session data for a player
+   * @param {string} playerId - Player ID
+   * @param {number} sessionStartTime - Timestamp of first match in session
+   * @returns {Object|null} Session data or null if not found/different session
+   */
+  getSession(playerId, sessionStartTime) {
+    const session = this.sessions.get(playerId);
+    if (!session) return null;
+    
+    // Check if it's the same session (same start time)
+    if (session.sessionStartTime === sessionStartTime) {
+      return session;
+    }
+    
+    // Different session, clear old data
+    this.sessions.delete(playerId);
+    return null;
+  }
+
+  /**
+   * Store session data for a player
+   * @param {string} playerId - Player ID
+   * @param {number} sessionStartTime - Timestamp of first match in session
+   * @param {number} initialElo - ELO at the start of the session
+   */
+  setSession(playerId, sessionStartTime, initialElo) {
+    this.sessions.set(playerId, {
+      sessionStartTime,
+      initialElo,
+      createdAt: Date.now()
+    });
+  }
+
+  /**
+   * Clear session data for a player
+   * @param {string} playerId - Player ID
+   */
+  clearSession(playerId) {
+    this.sessions.delete(playerId);
+  }
+}
+
+// Export singleton instance
+export const sessionEloCache = new SessionEloCache();
+

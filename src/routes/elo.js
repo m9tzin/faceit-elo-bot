@@ -44,12 +44,11 @@ router.get('/',
 
     const elo = playerData.games.cs2.faceit_elo;
     
-    // Calculate today's stats (W/L and ELO diff)
+    // Calculate today's stats (W/L)
     const todayStats = await calculateTodayStats(playerData.player_id, elo);
     
-    // Format response: ELO, W: X, L: Y, Elo diff: +/-Z
-    const eloDiffSign = todayStats.eloDiff >= 0 ? '+' : '';
-    const response = `${elo}, W: ${todayStats.wins}, L: ${todayStats.losses}, Elo diff: ${eloDiffSign}${todayStats.eloDiff}`;
+    // Format response: ELO, W: X, L: Y
+    const response = `${elo}, W: ${todayStats.wins}, L: ${todayStats.losses}`;
     
     // Cache the response
     cache.set(cacheKey, response);
