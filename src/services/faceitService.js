@@ -24,11 +24,11 @@ function normalizeNickname(nickname) {
  */
 async function faceitRequest(endpoint, timeoutMs = 4000) {
   const url = `${config.faceit.baseUrl}${endpoint}`;
-  
+
   // Create AbortController for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -47,12 +47,12 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
     return await response.json();
   } catch (error) {
     clearTimeout(timeoutId);
-    
+
     // Handle timeout errors
     if (error.name === 'AbortError') {
       throw new Error('FACEIT API timeout');
     }
-    
+
     throw error;
   }
 }
@@ -65,7 +65,7 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
  */
 export async function getPlayerData(nickname) {
   const playerNick = normalizeNickname(nickname);
-  
+
   // Try variations: original, lowercase, uppercase, capitalize
   const variations = [
     playerNick,
@@ -73,10 +73,10 @@ export async function getPlayerData(nickname) {
     playerNick.toUpperCase(),
     playerNick.charAt(0).toUpperCase() + playerNick.slice(1).toLowerCase()
   ];
-  
+
   // Remove duplicates
   const uniqueVariations = [...new Set(variations)];
-  
+
   // Try all variations in parallel (faster response, respects Nightbot 5s timeout)
   const requests = uniqueVariations.map(async (variation) => {
     try {
@@ -87,16 +87,16 @@ export async function getPlayerData(nickname) {
       return { success: false, error };
     }
   });
-  
+
   // Wait for all requests to complete
   const results = await Promise.all(requests);
-  
+
   // Return first successful result
   const successResult = results.find(r => r.success);
   if (successResult) {
     return successResult.data;
   }
-  
+
   // If all variations failed, throw player not found error
   throw new PlayerNotFoundError();
 }
@@ -234,15 +234,15 @@ function getTodayStartingPointDate() {
 
 /**
  * Calculate today's W/L using the same logic as fls-web HUD
- * - Uses FLS matches API to get per-match stats
  * - Defines "today" as starting at 07:00 local time
  * @param {string} playerId - Player ID
  * @param {number} currentElo - Current ELO
  * @returns {Promise<Object>} Stats: wins, losses
  */
 export async function calculateTodayStats(playerId, currentElo) {
-  // Get extended match stats (includes elo & elo_delta)
-  const matches = await getExtendedMatchStats(playerId);
+  // Get last 30 matches using native Faceit API
+  const historyData = await getPlayerHistory(playerId, 30);
+  const matches = historyData.items;
 
   if (!matches || matches.length === 0) {
     return {
@@ -251,15 +251,32 @@ export async function calculateTodayStats(playerId, currentElo) {
     };
   }
 
-  // Filter matches that belong to "today" (using 07:00 boundary)
+  // Filter matches that belong to "today"
   const startingPoint = getTodayStartingPointDate();
-  const todayMatches = matches.filter(match => match.date > startingPoint);
+
+  // started_at is in UNIX seconds, startingPoint is in milliseconds
+  const todayMatches = matches.filter(match => (match.started_at * 1000) > startingPoint);
 
   // Compute W/L from today's matches
   let wins = 0;
   let losses = 0;
+
   for (const match of todayMatches) {
-    if (match.isWin) {
+    const teams = match.teams;
+    let playerTeam = null;
+
+    // Find which team the player was on
+    if (teams.faction1.players.some(p => p.player_id === playerId)) {
+      playerTeam = 'faction1';
+    } else if (teams.faction2.players.some(p => p.player_id === playerId)) {
+      playerTeam = 'faction2';
+    }
+
+    if (!playerTeam) continue;
+
+    const won = match.results.winner === playerTeam;
+
+    if (won) {
       wins += 1;
     } else {
       losses += 1;
@@ -281,7 +298,7 @@ export async function calculateLast30MatchesStats(playerId) {
   // Get last 30 matches
   const historyData = await getPlayerHistory(playerId, 30);
   const matches = historyData.items;
-  
+
   if (!matches || matches.length === 0) {
     return {
       avgKills: 0,
@@ -294,7 +311,7 @@ export async function calculateLast30MatchesStats(playerId) {
   // Fetch match stats in parallel
   const matchStatsPromises = matches.map(match => getMatchStats(match.match_id));
   const matchStatsResults = await Promise.all(matchStatsPromises);
-  
+
   let totalKills = 0;
   let totalDeaths = 0;
   let totalHeadshots = 0;
@@ -306,7 +323,7 @@ export async function calculateLast30MatchesStats(playerId) {
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
     const matchStats = matchStatsResults[i];
-    
+
     if (!matchStats || !matchStats.rounds || matchStats.rounds.length === 0) {
       continue;
     }
@@ -318,7 +335,7 @@ export async function calculateLast30MatchesStats(playerId) {
     } else if (match.teams.faction2.players.some(p => p.player_id === playerId)) {
       playerTeam = 'faction2';
     }
-    
+
     if (!playerTeam) continue;
 
     // Check win
@@ -341,7 +358,7 @@ export async function calculateLast30MatchesStats(playerId) {
     totalDeaths += parseInt(stats['Deaths'] || 0);
     totalHeadshotKills += parseInt(stats['Headshots'] || 0);
     totalHeadshots += parseInt(stats['Headshots %'] || 0);
-    
+
     validMatches++;
   }
 
@@ -378,7 +395,7 @@ export function hasCS2Data(playerData) {
 export function formatStatsFromLast30(playerData, calculatedStats) {
   const elo = playerData.games.cs2.faceit_elo || 0;
   const level = playerData.games.cs2.skill_level || 0;
-  
+
   return [
     `${playerData.nickname}:`,
     `ELO: ${elo}`,
