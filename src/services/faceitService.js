@@ -324,11 +324,7 @@ export async function calculateLast30MatchesStats(playerId) {
     const match = matches[i];
     const matchStats = matchStatsResults[i];
 
-    if (!matchStats || !matchStats.rounds || matchStats.rounds.length === 0) {
-      continue;
-    }
-
-    // Find player team
+    // Win/Loss from history only (do not depend on /matches/{id}/stats)
     let playerTeam = null;
     if (match.teams.faction1.players.some(p => p.player_id === playerId)) {
       playerTeam = 'faction1';
@@ -338,9 +334,12 @@ export async function calculateLast30MatchesStats(playerId) {
 
     if (!playerTeam) continue;
 
-    // Check win
     if (match.results.winner === playerTeam) {
       wins++;
+    }
+
+    if (!matchStats || !matchStats.rounds || matchStats.rounds.length === 0) {
+      continue;
     }
 
     // Get player stats from the match
