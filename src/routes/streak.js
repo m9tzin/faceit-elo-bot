@@ -17,13 +17,14 @@ import {
 const router = express.Router();
 
 /**
- * GET /streak?nick=nickname
+ * GET /streak?nick=nickname or ?player=nickname
  * Returns last 10 match results (W = Win, L = Loss) for default player
- * Optional query parameter 'nick' to search any player
+ * Optional query parameters 'nick' or 'player' to search any player (nick wins if both set)
  */
 router.get('/', 
   asyncHandler(async (req, res) => {
-    const playerQuery = req.query.nick?.trim() || null;
+    const playerQuery =
+      req.query.nick?.trim() || req.query.player?.trim() || null;
     
     // Generate cache key based on player
     const cacheKey = playerQuery ? `streak:${playerQuery.toLowerCase()}` : 'streak:default';
