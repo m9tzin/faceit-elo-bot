@@ -17,16 +17,15 @@ import {
 const router = express.Router();
 
 /**
- * GET /elo?nick=nickname or ?player=nickname
+ * GET /elo?player=nickname or ?nick=nickname
  * Returns current CS2 ELO for default player
- * Optional query parameters 'nick' or 'player' to search any player (nick wins if both set)
- * Format: 3776
+ * Optional query: `player` (preferred) or `nick` — same meaning; if both are set, `player` wins
  */
 router.get(
   "/",
   asyncHandler(async (req, res) => {
     const playerQuery =
-      req.query.nick?.trim() || req.query.player?.trim() || null;
+      req.query.player?.trim() || req.query.nick?.trim() || null;
 
     // Generate cache key based on player
     const cacheKey = playerQuery

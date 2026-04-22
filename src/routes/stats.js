@@ -18,13 +18,13 @@ import {
 const router = express.Router();
 
 /**
- * GET /stats?player=nickname
+ * GET /stats?player=nickname or ?nick=nickname
  * Returns comprehensive player statistics
- * Optional query parameter 'player' to search any player
+ * Optional query: `player` (preferred) or `nick` — if both are set, `player` wins
  */
 router.get('/', 
   asyncHandler(async (req, res) => {
-    const playerQuery = req.query.player?.trim() || null;
+    const playerQuery = req.query.player?.trim() || req.query.nick?.trim() || null;
     
     // Generate cache key based on player
     const cacheKey = playerQuery ? `stats:${playerQuery.toLowerCase()}` : 'stats:default';
