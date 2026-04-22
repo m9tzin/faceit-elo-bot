@@ -22,9 +22,10 @@ const router = express.Router();
  * Returns comprehensive player statistics
  * Optional query: `player` (preferred) or `nick` — if both are set, `player` wins
  */
-router.get('/', 
+router.get('/',
   asyncHandler(async (req, res) => {
-    const playerQuery = req.query.player?.trim() || req.query.nick?.trim() || null;
+    const getStringParam = (p) => typeof p === 'string' ? p.trim() : Array.isArray(p) ? p[0]?.trim() ?? null : null;
+    const playerQuery = getStringParam(req.query.player) || getStringParam(req.query.nick) || null;
     
     // Generate cache key based on player
     const cacheKey = playerQuery ? `stats:${playerQuery.toLowerCase()}` : 'stats:default';
@@ -57,4 +58,3 @@ router.get('/',
 );
 
 export default router;
-
