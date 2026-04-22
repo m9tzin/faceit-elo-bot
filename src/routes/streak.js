@@ -24,17 +24,8 @@ const router = express.Router();
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    // Safely extract player query, handling arrays and ensuring string type
-    let playerQuery = null;
-    if (typeof req.query.player === 'string') {
-      playerQuery = req.query.player.trim();
-    } else if (Array.isArray(req.query.player) && typeof req.query.player[0] === 'string') {
-      playerQuery = req.query.player[0].trim();
-    } else if (typeof req.query.nick === 'string') {
-      playerQuery = req.query.nick.trim();
-    } else if (Array.isArray(req.query.nick) && typeof req.query.nick[0] === 'string') {
-      playerQuery = req.query.nick[0].trim();
-    }
+    const getStringParam = (p) => typeof p === 'string' ? p.trim() : Array.isArray(p) ? p[0]?.trim() ?? null : null;
+    const playerQuery = getStringParam(req.query.player) || getStringParam(req.query.nick) || null;
 
     // Generate cache key based on player
     const cacheKey = playerQuery
