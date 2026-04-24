@@ -47,7 +47,7 @@ app.listen(PORT, () => {
   console.log(`\nEndpoints:`);
   console.log(`  GET /health - Health check`);
   console.log(`  GET /elo?player=<nickname> - Current ELO rating`);
-  console.log(`  GET /stats?player=<nickname> - Player statistics`);
+  console.log(`  GET /stats?player=<nickname> - Player statistics (player required)`);
   console.log(`  GET /streak?player=<nickname> - Last 10 matches`);
 });
 

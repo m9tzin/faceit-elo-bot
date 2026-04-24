@@ -101,8 +101,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 # Usage: !wl (uses default) or !wl s1mple (searches player)
 !addcom !wl $(urlfetch https://YOUR_SERVICE_URL/streak?player=$(1))
 
-# Stats command - accepts player nickname as parameter
-# Usage: !stats (uses default) or !stats s1mple (searches player)
+# Stats command — nickname required (e.g. !stats s1mple)
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
 ```
 
@@ -132,7 +131,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 # Streak command - accepts player nickname as parameter
 !command add !wl $(urlfetch https://YOUR_SERVICE_URL/streak?player=$(1))
 
-# Stats command - accepts player nickname as parameter
+# Stats command — nickname required (e.g. !stats s1mple)
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
 ```
 
@@ -146,7 +145,7 @@ Replace `YOUR_SERVICE_URL` and `faceit_player` with your deployment URL and defa
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=$(1))
 ```
 
-Usage: `!stats s1mple` looks up any player; `!elo` / `!wl` use the fixed player in the URL unless you switch to the `$(1)` variants above.
+Usage: `!stats` **must** include a nickname (`!stats s1mple`). `!elo` / `!wl` can use the fixed player in the URL or `$(1)` as in the options above.
 
 ## API Endpoints
 
@@ -168,10 +167,12 @@ curl https://YOUR_SERVICE_URL/elo?player=faceit_player
 # 2150, W: 2, L: 1
 ```
 
-### `GET /stats` or `GET /stats?player=nickname`
-Returns player statistics. Averages, K/D, HS%, and win rate are derived from the **last 30 completed matches**. Optional query `player` sets the FACEIT nickname; if omitted, the server uses `PLAYER_NICKNAME`.
+### `GET /stats?player=nickname` (required)
+Returns player statistics. Averages, K/D, HS%, and win rate are derived from the **last 30 completed matches**. Query **`player` is required** (alias `nick` still accepted for older URLs). There is no default player for `/stats` — unlike `/elo` and `/streak`.
 
 **Response:** `nickname: | ELO: 2150 | Level: 10 | Avg Kills: 18.2 | K/D: 1.25 | HS%: 48% | Winrate: 55%`
+
+**Missing `player`:** `200` with body `Indica o nickname FACEIT — ex.: !stats s1mple` (plain text for Twitch `urlfetch`).
 
 **Includes:**
 - Player nickname
@@ -186,9 +187,9 @@ Returns player statistics. Averages, K/D, HS%, and win rate are derived from the
 
 **Examples:**
 ```bash
-# Default player
+# No player query — prompts for nickname
 curl https://YOUR_SERVICE_URL/stats
-# nickname: | ELO: 2150 | Level: 10 | Avg Kills: 18.2 | K/D: 1.25 | HS%: 48% | Winrate: 55%
+# Indica o nickname FACEIT — ex.: !stats s1mple
 
 # Search any player (case-insensitive)
 curl https://YOUR_SERVICE_URL/stats?player=s1mple
