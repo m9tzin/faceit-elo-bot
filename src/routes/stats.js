@@ -31,16 +31,24 @@ router.get(
         : Array.isArray(p)
           ? (p[0]?.trim() ?? null)
           : null;
-    const playerQuery =
+    const rawPlayer =
       getStringParam(req.query.player) ||
       getStringParam(req.query.nick) ||
       null;
 
-    if (!playerQuery) {
+    // Nightbot expands `$(1)` para a string literal "null" quando o usuário
+    // digita apenas `!stats` sem argumento; tratamos "null"/"undefined" como
+    // ausência de nickname para evitar consultar um jogador com esse apelido.
+    const isMissing =
+      !rawPlayer || ["null", "undefined"].includes(rawPlayer.toLowerCase());
+
+    if (isMissing) {
       return res
         .status(200)
         .send("Indique o nickname FACEIT (ex.: !stats s1mple)");
     }
+
+    const playerQuery = rawPlayer;
 
     // Generate cache key based on player
     const cacheKey = `stats:${playerQuery.toLowerCase()}`;
