@@ -36,6 +36,7 @@ PLAYER_NICKNAME=your_faceit_nickname
 ```
 
 **Get your FACEIT API key:**
+
 1. Visit https://developers.faceit.com/
 2. Login and create a new app
 3. Copy the API key
@@ -90,6 +91,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 # Stats command - uses fixed player nickname
 !addcom !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
 ```
+
 **Option 2: Using command parameter (search any player)**
 
 ```bash
@@ -121,6 +123,7 @@ Replace `YOUR_SERVICE_URL` with your deployed service URL and `YOUR_PLAYER_NICK`
 # Stats command - uses fixed player nickname
 !command add !stats $(urlfetch https://YOUR_SERVICE_URL/stats?player=YOUR_PLAYER_NICK)
 ```
+
 **Option 2: Using command parameter (search any player)**
 
 ```bash
@@ -150,6 +153,7 @@ Usage: `!stats` **must** include a nickname (`!stats s1mple`). `!elo` / `!wl` ca
 ## API Endpoints
 
 ### `GET /elo` or `GET /elo?player=nickname`
+
 Returns the current CS2 ELO plus **today’s** wins and losses (FACEIT match day). Optional query `player` sets the FACEIT nickname; if omitted, the server uses `PLAYER_NICKNAME`.
 
 **Response:** `2150, W: 2, L: 1`
@@ -157,6 +161,7 @@ Returns the current CS2 ELO plus **today’s** wins and losses (FACEIT match day
 **Note:** Nicknames are case-insensitive (automatically converted to lowercase).
 
 **Examples:**
+
 ```bash
 # Default player (from PLAYER_NICKNAME or built-in default)
 curl https://YOUR_SERVICE_URL/elo
@@ -168,13 +173,15 @@ curl https://YOUR_SERVICE_URL/elo?player=faceit_player
 ```
 
 ### `GET /stats?player=nickname` (required)
+
 Returns player statistics. Averages, K/D, HS%, and win rate are derived from the **last 30 completed matches**. Query **`player` is required** (alias `nick` still accepted for older URLs). There is no default player for `/stats` — unlike `/elo` and `/streak`.
 
 **Response:** `nickname: | ELO: 2150 | Level: 10 | Avg Kills: 18.2 | K/D: 1.25 | HS%: 48% | Winrate: 55%`
 
-**Missing `player`:** `200` with body `Indica o nickname FACEIT — ex.: !stats s1mple` (plain text for Twitch `urlfetch`).
+**Missing `player`:** `200` with body `Indique o nickname FACEIT (ex.: !stats s1mple)` (plain text for Twitch `urlfetch`). The same warning is returned when `player` is the literal string `null` or `undefined` (case-insensitive) — this happens on Nightbot when the user runs `!stats` without any argument and `$(1)` gets expanded to `null`.
 
 **Includes:**
+
 - Player nickname
 - Current ELO
 - Skill level (1-10)
@@ -186,10 +193,15 @@ Returns player statistics. Averages, K/D, HS%, and win rate are derived from the
 **Note:** Nicknames are case-insensitive (automatically converted to lowercase).
 
 **Examples:**
+
 ```bash
 # No player query — prompts for nickname
 curl https://YOUR_SERVICE_URL/stats
-# Indica o nickname FACEIT — ex.: !stats s1mple
+# Indique o nickname FACEIT (ex.: !stats s1mple)
+
+# Nightbot `$(1)` expands to "null" when no argument is passed — same warning
+curl "https://YOUR_SERVICE_URL/stats?player=null"
+# Indique o nickname FACEIT (ex.: !stats s1mple)
 
 # Search any player (case-insensitive)
 curl https://YOUR_SERVICE_URL/stats?player=s1mple
@@ -200,6 +212,7 @@ curl https://YOUR_SERVICE_URL/stats?player=S1MPLE
 ```
 
 ### `GET /streak` or `GET /streak?player=nickname`
+
 Returns the last 10 match results (W = Win, L = Loss). Optional query `player` sets the FACEIT nickname; if omitted, the server uses `PLAYER_NICKNAME`.
 
 **Response:** `Últimas 10: W W L W L W W W L W`
@@ -207,6 +220,7 @@ Returns the last 10 match results (W = Win, L = Loss). Optional query `player` s
 **Note:** Nicknames are case-insensitive (automatically converted to lowercase).
 
 **Examples:**
+
 ```bash
 # Default player
 curl https://YOUR_SERVICE_URL/streak
@@ -218,24 +232,25 @@ curl https://YOUR_SERVICE_URL/streak?player=faceit_player
 ```
 
 ### `GET /health`
+
 Health check endpoint for monitoring.
 
 **Response:** `OK`
 
 ## Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `FACEIT_KEY` | Yes | Your FACEIT API key |
-| `PLAYER_NICKNAME` | No | Default FACEIT nickname when `player` is omitted from the URL (default: `faceit_player`) |
-| `PORT` | No | Server port (default: 3000) |
+| Variable          | Required | Description                                                                              |
+| ----------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `FACEIT_KEY`      | Yes      | Your FACEIT API key                                                                      |
+| `PLAYER_NICKNAME` | No       | Default FACEIT nickname when `player` is omitted from the URL (default: `faceit_player`) |
+| `PORT`            | No       | Server port (default: 3000)                                                              |
 
 ## Project Structure
 
 ```
 src/
 ├── config/           # Configuration management
-├── services/         # FACEIT API integration  
+├── services/         # FACEIT API integration
 ├── routes/           # HTTP endpoints
 ├── middlewares/      # Request/response processing
 ├── utils/            # Utilities (cache, etc)
@@ -266,4 +281,3 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ---
 
 Made with ❤️ for the FACEIT and Twitch communities
-
