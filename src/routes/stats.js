@@ -45,7 +45,7 @@ router.get(
     if (isMissing) {
       return res
         .status(200)
-        .send("Indique o nickname FACEIT (ex.: !stats s1mple)");
+        .send("Indique o nickname FACEIT (ex.: !stats togs)");
     }
 
     const playerQuery = rawPlayer;
