@@ -5,7 +5,7 @@
  */
 
 import express from "express";
-import { asyncHandler } from "../middlewares/errorHandler.js";
+import { asyncHandler, NoCS2DataError } from "../middlewares/errorHandler.js";
 import { cache } from "../utils/cache.js";
 import { config } from "../config/index.js";
 import {
@@ -42,7 +42,7 @@ router.get(
     const playerData = await getPlayerData(playerQuery);
 
     if (!hasCS2Data(playerData)) {
-      throw new Error("Dados de CS2 não encontrados para o jogador");
+      throw new NoCS2DataError();
     }
 
     const elo = playerData.games.cs2.faceit_elo;
@@ -54,7 +54,7 @@ router.get(
     const response = `${elo}, W: ${todayStats.wins}, L: ${todayStats.losses}`;
 
     // Cache the response
-    cache.set(cacheKey, response);
+    cache.set(cacheKey, response, config.cache.maxEntries);
 
     res.send(response);
   }),
