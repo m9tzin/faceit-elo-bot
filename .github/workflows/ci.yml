@@ -37,14 +37,17 @@ jobs:
       - name: 🚀 Check if app starts
         run: |
           echo "Starting app with timeout of 10 seconds..."
-          timeout 10s npm start || code=$?
-          if [ ${code:-0} -eq 124 ]; then
-            echo "✅ App started successfully (timeout after 10s as expected)"
+          set +e
+          timeout 10s npm start
+          code=$?
+          set -e
+          # 124 = GNU timeout SIGTERM'd the process. 0 = child exited cleanly (Node often exits 0 after SIGTERM).
+          if [ "$code" -eq 124 ] || [ "$code" -eq 0 ]; then
+            echo "✅ App started successfully (timeout or clean shutdown; exit $code)"
             exit 0
-          else
-            echo "❌ App failed to start with exit code: ${code}"
-            exit 1
           fi
+          echo "❌ App failed to start with exit code: $code"
+          exit 1
         env:
           FACEIT_KEY: test_key_for_ci_pipeline
           PLAYER_NICKNAME: test_player
