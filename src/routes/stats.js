@@ -5,7 +5,7 @@
  */
 
 import express from "express";
-import { asyncHandler } from "../middlewares/errorHandler.js";
+import { asyncHandler, NoCS2DataError } from "../middlewares/errorHandler.js";
 import { cache } from "../utils/cache.js";
 import { config } from "../config/index.js";
 import {
@@ -64,7 +64,7 @@ router.get(
     const playerData = await getPlayerData(playerQuery);
 
     if (!hasCS2Data(playerData)) {
-      throw new Error("Dados de CS2 não encontrados para o jogador");
+      throw new NoCS2DataError();
     }
 
     // Calculate statistics from last 30 matches
@@ -76,7 +76,7 @@ router.get(
     const formattedStats = formatStatsFromLast30(playerData, calculatedStats);
 
     // Cache the response
-    cache.set(cacheKey, formattedStats);
+    cache.set(cacheKey, formattedStats, config.cache.maxEntries);
 
     res.send(formattedStats);
   }),

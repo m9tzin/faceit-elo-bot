@@ -20,7 +20,9 @@ export const config = {
   
   // Cache configuration
   cache: {
-    ttl: 30 * 1000 // 30 seconds
+    ttl: 30 * 1000, // 30 seconds
+    /** Cap unique cache keys to limit memory and avoid unbounded growth */
+    maxEntries: Math.max(50, parseInt(process.env.CACHE_MAX_ENTRIES || '500', 10) || 500)
   }
 };
 

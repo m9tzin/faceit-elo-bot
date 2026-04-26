@@ -49,7 +49,7 @@ router.get(
     const streak = processMatchStreak(historyData.items, playerId);
 
     // Cache the response
-    cache.set(cacheKey, streak);
+    cache.set(cacheKey, streak, config.cache.maxEntries);
 
     res.send(streak);
   }),
