@@ -5,16 +5,29 @@
  */
 
 import express from "express";
-import { asyncHandler } from "../middlewares/errorHandler.js";
+import { asyncHandler, NoCS2DataError } from "../middlewares/errorHandler.js";
 import { cache } from "../utils/cache.js";
 import { config } from "../config/index.js";
 import {
   getPlayerData,
   getPlayerHistory,
   processMatchStreak,
+  hasCS2Data,
 } from "../services/faceitService.js";
 
 const router = express.Router();
+
+const NIGHTBOT_PLACEHOLDERS = ["null", "undefined", "$(1)", "$(2)"];
+
+function getStringParam(p) {
+  if (typeof p === "string") return p.trim();
+  if (Array.isArray(p)) return p[0]?.trim() ?? null;
+  return null;
+}
+
+function isPlaceholder(value) {
+  return !value || NIGHTBOT_PLACEHOLDERS.includes(value.toLowerCase());
+}
 
 /**
  * GET /streak?player=nickname or ?nick=nickname
@@ -24,31 +37,30 @@ const router = express.Router();
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const getStringParam = (p) => typeof p === 'string' ? p.trim() : Array.isArray(p) ? p[0]?.trim() ?? null : null;
-    const playerQuery = getStringParam(req.query.player) || getStringParam(req.query.nick) || null;
+    const raw = getStringParam(req.query.player) || getStringParam(req.query.nick) || null;
+    const playerQuery = isPlaceholder(raw) ? null : raw;
 
-    // Generate cache key based on player
     const cacheKey = playerQuery
       ? `streak:${playerQuery.toLowerCase()}`
       : "streak:default";
 
-    // Check cache first
     const cachedData = cache.get(cacheKey, config.cache.ttl);
     if (cachedData) {
       return res.send(cachedData);
     }
 
-    // Get player data (uses default player if no query provided)
     const playerData = await getPlayerData(playerQuery);
+
+    if (!hasCS2Data(playerData)) {
+      throw new NoCS2DataError();
+    }
+
     const playerId = playerData.player_id;
 
-    // Get match history
     const historyData = await getPlayerHistory(playerId, 10);
 
-    // Process and format streak
     const streak = processMatchStreak(historyData.items, playerId);
 
-    // Cache the response
     cache.set(cacheKey, streak, config.cache.maxEntries);
 
     res.send(streak);

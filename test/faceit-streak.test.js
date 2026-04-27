@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { processMatchStreak } from '../src/services/faceitService.js';
 
 describe('processMatchStreak', () => {
-  it('uses ? when player is not on either team', () => {
+  it('skips matches when player is not on either team', () => {
     const match = {
       teams: {
         faction1: { players: [{ player_id: 'p1' }] },
@@ -12,7 +12,7 @@ describe('processMatchStreak', () => {
       results: { winner: 'faction1' }
     };
     const out = processMatchStreak([match], 'missing-player-id');
-    assert.match(out, /\?/);
+    assert.equal(out, 'Nenhuma partida encontrada');
   });
 
   it('marks win when player team matches winner', () => {
@@ -26,6 +26,23 @@ describe('processMatchStreak', () => {
     };
     const out = processMatchStreak([match], pid);
     assert.match(out, /W/);
-    assert.doesNotMatch(out, /\?/);
+  });
+
+  it('marks loss when player team does not match winner', () => {
+    const pid = 'me';
+    const match = {
+      teams: {
+        faction1: { players: [{ player_id: pid }] },
+        faction2: { players: [{ player_id: 'other' }] }
+      },
+      results: { winner: 'faction2' }
+    };
+    const out = processMatchStreak([match], pid);
+    assert.match(out, /L/);
+  });
+
+  it('returns no matches message for empty array', () => {
+    const out = processMatchStreak([], 'anyone');
+    assert.equal(out, 'Nenhuma partida encontrada');
   });
 });
