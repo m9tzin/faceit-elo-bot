@@ -12,7 +12,7 @@ A simple Express.js service that fetches and displays a FACEIT player's CS2 ELO 
 - Fetches real-time FACEIT CS2 data via the official API
 - **3 commands:** ELO (with today’s W/L), full stats, and last-10 match streak
 - Stats (K/D, HS%, win rate, etc.) are computed from the **last 30 matches**
-- Built-in 30-second caching to avoid rate limiting
+- Built-in caching (30s for ELO/streak, 3 min for stats) to avoid rate limiting
 - Works with Nightbot, StreamElements, and other Twitch bots
 
 ## Quick Start
@@ -149,6 +149,20 @@ Replace `YOUR_SERVICE_URL` and `faceit_player` with your deployment URL and defa
 ```
 
 Usage: `!stats` **must** include a nickname (`!stats s1mple`). `!elo` / `!wl` can use the fixed player in the URL or `$(1)` as in the options above.
+
+### Nightbot cooldown (moderadores vs viewers)
+
+By default Nightbot applies a **30-second cooldown** per command for regular viewers, while moderators and the broadcaster bypass it. This means a viewer who types `!stats` right after another viewer will see no response — the bot silently ignores the duplicate.
+
+To reduce or equalize the cooldown:
+
+1. Go to [nightbot.tv](https://nightbot.tv/) and log in
+2. Navigate to **Commands → Custom**
+3. Click **Edit** on the `!stats` (or `!elo` / `!wl`) command
+4. Change the **Cooldown** field to a lower value (minimum **5 seconds**)
+5. Save
+
+Setting the cooldown to **5s** keeps a small spam guard while giving viewers a much faster experience.
 
 ## API Endpoints
 

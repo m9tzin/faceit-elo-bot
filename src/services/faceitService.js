@@ -6,6 +6,30 @@
 import fetch from 'node-fetch';
 import { config } from '../config/index.js';
 import { PlayerNotFoundError } from '../middlewares/errorHandler.js';
+import { matchStatsCache } from '../utils/cache.js';
+
+/**
+ * Run an array of task factories with bounded concurrency.
+ * Each factory is a () => Promise<T>. Returns results in order.
+ * @param {Array<Function>} factories - Array of () => Promise<T>
+ * @param {number} concurrency - Max parallel tasks
+ * @returns {Promise<Array<T>>}
+ */
+async function promiseAllSettledLimit(factories, concurrency) {
+  const results = new Array(factories.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < factories.length) {
+      const idx = next++;
+      results[idx] = await factories[idx]();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, factories.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
 
 /**
  * Normalize player nickname (trim whitespace only)
@@ -77,28 +101,17 @@ export async function getPlayerData(nickname) {
   // Remove duplicates
   const uniqueVariations = [...new Set(variations)];
 
-  // Try all variations in parallel (faster response, respects Nightbot 5s timeout)
+  // Race all variations — return as soon as the first one succeeds (Nightbot 5s timeout)
   const requests = uniqueVariations.map(async (variation) => {
-    try {
-      const encodedNickname = encodeURIComponent(variation);
-      const data = await faceitRequest(`/players?nickname=${encodedNickname}`);
-      return { success: true, data };
-    } catch (error) {
-      return { success: false, error };
-    }
+    const encodedNickname = encodeURIComponent(variation);
+    return faceitRequest(`/players?nickname=${encodedNickname}`);
   });
 
-  // Wait for all requests to complete
-  const results = await Promise.all(requests);
-
-  // Return first successful result
-  const successResult = results.find(r => r.success);
-  if (successResult) {
-    return successResult.data;
+  try {
+    return await Promise.any(requests);
+  } catch {
+    throw new PlayerNotFoundError();
   }
-
-  // If all variations failed, throw player not found error
-  throw new PlayerNotFoundError();
 }
 
 /**
@@ -135,10 +148,14 @@ export async function getPlayerHistory(playerId, limit = 30) {
  * @returns {Promise<Object|null>} Match statistics or null if error
  */
 async function getMatchStats(matchId) {
+  const cached = matchStatsCache.get(matchId);
+  if (cached) return cached;
+
   try {
-    return await faceitRequest(`/matches/${matchId}/stats`, 6000);
-  } catch (error) {
-    // Return null if match stats not available
+    const data = await faceitRequest(`/matches/${matchId}/stats`, 6000);
+    matchStatsCache.set(matchId, data);
+    return data;
+  } catch {
     return null;
   }
 }
@@ -308,9 +325,11 @@ export async function calculateLast30MatchesStats(playerId) {
     };
   }
 
-  // Fetch match stats in parallel
-  const matchStatsPromises = matches.map(match => getMatchStats(match.match_id));
-  const matchStatsResults = await Promise.all(matchStatsPromises);
+  // Fetch match stats with bounded concurrency (max 6 in-flight requests)
+  const matchStatsResults = await promiseAllSettledLimit(
+    matches.map(match => () => getMatchStats(match.match_id)),
+    6
+  );
 
   let totalKills = 0;
   let totalDeaths = 0;
