@@ -13,8 +13,21 @@ import {
   hasCS2Data,
   calculateTodayStats,
 } from "../services/faceitService.js";
+import { CS2DataNotFoundError } from "../middlewares/errorHandler.js";
 
 const router = express.Router();
+
+const NIGHTBOT_PLACEHOLDERS = ["null", "undefined", "$(1)", "$(2)"];
+
+function getStringParam(p) {
+  if (typeof p === "string") return p.trim();
+  if (Array.isArray(p)) return p[0]?.trim() ?? null;
+  return null;
+}
+
+function isPlaceholder(value) {
+  return !value || NIGHTBOT_PLACEHOLDERS.includes(value.toLowerCase());
+}
 
 /**
  * GET /elo?player=nickname or ?nick=nickname
@@ -24,36 +37,30 @@ const router = express.Router();
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const getStringParam = (p) => typeof p === 'string' ? p.trim() : Array.isArray(p) ? p[0]?.trim() ?? null : null;
-    const playerQuery = getStringParam(req.query.player) || getStringParam(req.query.nick) || null;
+    const raw = getStringParam(req.query.player) || getStringParam(req.query.nick) || null;
+    const playerQuery = isPlaceholder(raw) ? null : raw;
 
-    // Generate cache key based on player
     const cacheKey = playerQuery
       ? `elo:${playerQuery.toLowerCase()}`
       : "elo:default";
 
-    // Check cache first
     const cachedData = cache.get(cacheKey, config.cache.ttl);
     if (cachedData) {
       return res.send(cachedData);
     }
 
-    // Get player data (uses default player if no query provided)
     const playerData = await getPlayerData(playerQuery);
 
     if (!hasCS2Data(playerData)) {
-      throw new Error("Dados de CS2 não encontrados para o jogador");
+      throw new CS2DataNotFoundError();
     }
 
     const elo = playerData.games.cs2.faceit_elo;
 
-    // Calculate today's stats (W/L)
-    const todayStats = await calculateTodayStats(playerData.player_id, elo);
+    const todayStats = await calculateTodayStats(playerData.player_id);
 
-    // Format response: ELO, W: X, L: Y
     const response = `${elo}, W: ${todayStats.wins}, L: ${todayStats.losses}`;
 
-    // Cache the response
     cache.set(cacheKey, response);
 
     res.send(response);
