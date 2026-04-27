@@ -1,13 +1,30 @@
 /**
  * Cache utility module
- * Provides a simple in-memory cache with TTL support
+ * In-memory cache with TTL and bounded size (LRU eviction).
  */
 
 const MAX_MATCH_CACHE_SIZE = 500;
 
 class Cache {
   constructor() {
-    this.store = {};
+    /** @type {Map<string, { data: any, lastUpdate: number, lastUsed: number }>} */
+    this.store = new Map();
+  }
+
+  /**
+   * @param {number} maxEntries
+   */
+  evictLruIfNeeded(maxEntries) {
+    if (this.store.size < maxEntries) return;
+    let oldestKey = null;
+    let oldest = Infinity;
+    for (const [key, entry] of this.store) {
+      if (entry.lastUsed < oldest) {
+        oldest = entry.lastUsed;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey != null) this.store.delete(oldestKey);
   }
 
   /**
@@ -17,27 +34,38 @@ class Cache {
    * @returns {any|null} Cached data or null if expired/missing
    */
   get(key, ttl) {
-    const cached = this.store[key];
-    if (!cached || !cached.data) {
+    const cached = this.store.get(key);
+    if (!cached || cached.data == null) {
       return null;
     }
 
     const now = Date.now();
     const isExpired = now - cached.lastUpdate > ttl;
-    
-    return isExpired ? null : cached.data;
+    if (isExpired) {
+      this.store.delete(key);
+      return null;
+    }
+
+    cached.lastUsed = now;
+    return cached.data;
   }
 
   /**
    * Set cached data
    * @param {string} key - Cache key
    * @param {any} data - Data to cache
+   * @param {number} maxEntries - Max distinct keys before LRU eviction
    */
-  set(key, data) {
-    this.store[key] = {
+  set(key, data, maxEntries) {
+    const now = Date.now();
+    if (!this.store.has(key)) {
+      this.evictLruIfNeeded(maxEntries);
+    }
+    this.store.set(key, {
       data,
-      lastUpdate: Date.now()
-    };
+      lastUpdate: now,
+      lastUsed: now
+    });
   }
 
   /**
@@ -46,9 +74,9 @@ class Cache {
    */
   clear(key) {
     if (key) {
-      delete this.store[key];
+      this.store.delete(key);
     } else {
-      this.store = {};
+      this.store.clear();
     }
   }
 }

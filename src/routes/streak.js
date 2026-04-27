@@ -5,7 +5,7 @@
  */
 
 import express from "express";
-import { asyncHandler } from "../middlewares/errorHandler.js";
+import { asyncHandler, NoCS2DataError } from "../middlewares/errorHandler.js";
 import { cache } from "../utils/cache.js";
 import { config } from "../config/index.js";
 import {
@@ -14,7 +14,6 @@ import {
   processMatchStreak,
   hasCS2Data,
 } from "../services/faceitService.js";
-import { CS2DataNotFoundError } from "../middlewares/errorHandler.js";
 
 const router = express.Router();
 
@@ -53,7 +52,7 @@ router.get(
     const playerData = await getPlayerData(playerQuery);
 
     if (!hasCS2Data(playerData)) {
-      throw new CS2DataNotFoundError();
+      throw new NoCS2DataError();
     }
 
     const playerId = playerData.player_id;
@@ -62,7 +61,7 @@ router.get(
 
     const streak = processMatchStreak(historyData.items, playerId);
 
-    cache.set(cacheKey, streak);
+    cache.set(cacheKey, streak, config.cache.maxEntries);
 
     res.send(streak);
   }),

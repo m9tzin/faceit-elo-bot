@@ -9,35 +9,12 @@ import { PlayerNotFoundError, FaceitApiError } from '../middlewares/errorHandler
 import { matchStatsCache } from '../utils/cache.js';
 
 /**
- * Run an array of task factories with bounded concurrency.
- * Each factory is a () => Promise<T>. Returns results in order.
- * @param {Array<Function>} factories - Array of () => Promise<T>
- * @param {number} concurrency - Max parallel tasks
- * @returns {Promise<Array<T>>}
- */
-async function promiseAllSettledLimit(factories, concurrency) {
-  const results = new Array(factories.length);
-  let next = 0;
-
-  async function worker() {
-    while (next < factories.length) {
-      const idx = next++;
-      results[idx] = await factories[idx]();
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, factories.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
-
-/**
- * Normalize player nickname (trim whitespace only)
+ * Normalize player nickname (trim whitespace, lowercase)
  * @param {string} nickname - Player nickname
  * @returns {string} Normalized nickname
  */
 function normalizeNickname(nickname) {
-  return (nickname || config.faceit.defaultPlayer).trim();
+  return (nickname || config.faceit.defaultPlayer).trim().toLowerCase();
 }
 
 /**
@@ -64,7 +41,7 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new FaceitApiError(`FACEIT API returned status ${response.status}`, response.status);
+      throw new FaceitApiError(response.status);
     }
 
     return await response.json();
@@ -72,7 +49,7 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
     clearTimeout(timeoutId);
 
     if (error.name === 'AbortError') {
-      throw new FaceitApiError('FACEIT API timeout');
+      throw new FaceitApiError(0, 'FACEIT API timeout');
     }
 
     throw error;
@@ -106,9 +83,9 @@ export async function getPlayerData(nickname) {
     return await Promise.any(requests);
   } catch (aggregateError) {
     const causes = aggregateError.errors || [];
-    const hasApiError = causes.some(e => e instanceof FaceitApiError && !e.isNotFound);
-    if (hasApiError) {
-      throw new FaceitApiError('Erro ao buscar dados da FACEIT');
+    const apiError = causes.find(e => e instanceof FaceitApiError && e.status !== 404);
+    if (apiError) {
+      throw apiError;
     }
     throw new PlayerNotFoundError();
   }
@@ -141,6 +118,45 @@ async function getMatchStats(matchId) {
   } catch {
     return null;
   }
+}
+
+/** Max concurrent /matches/{id}/stats calls to reduce burst load on FACEIT */
+const MATCH_STATS_CONCURRENCY = 5;
+
+/**
+ * Run async mapper over items with limited concurrency
+ * @template T, R
+ * @param {T[]} items
+ * @param {number} concurrency
+ * @param {(item: T, index: number) => Promise<R>} mapper
+ * @returns {Promise<R[]>}
+ */
+async function mapPool(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let next = 0;
+  const n = Math.max(1, Math.min(concurrency, items.length));
+
+  async function worker() {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) break;
+      results[idx] = await mapper(items[idx], idx);
+    }
+  }
+
+  await Promise.all(Array.from({ length: n }, () => worker()));
+  return results;
+}
+
+/**
+ * Parse headshot percentage from FACEIT match stats (may be "48" or "48%")
+ * @param {string|undefined} raw
+ * @returns {number|null}
+ */
+function parseHeadshotPercentField(raw) {
+  if (raw == null || raw === '') return null;
+  const n = parseFloat(String(raw).replace('%', '').trim());
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -226,17 +242,19 @@ export async function calculateLast30MatchesStats(playerId) {
     return { avgKills: 0, kd: 0, hsPercent: 0, winrate: 0 };
   }
 
-  const matchStatsResults = await promiseAllSettledLimit(
-    matches.map(match => () => getMatchStats(match.match_id)),
-    6
+  const matchStatsResults = await mapPool(
+    matches,
+    MATCH_STATS_CONCURRENCY,
+    (match) => getMatchStats(match.match_id)
   );
 
   let totalKills = 0;
   let totalDeaths = 0;
-  let totalHsPercent = 0;
+  let hsPercentSum = 0;
+  let hsPercentCount = 0;
   let wins = 0;
-  let validMatches = 0;
   let participatedMatches = 0;
+  let validMatches = 0;
 
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
@@ -263,16 +281,28 @@ export async function calculateLast30MatchesStats(playerId) {
     if (!playerData?.player_stats) continue;
 
     const stats = playerData.player_stats;
-    totalKills += parseInt(stats['Kills'] || 0);
-    totalDeaths += parseInt(stats['Deaths'] || 0);
-    totalHsPercent += parseInt(stats['Headshots %'] || 0);
+    const kills = parseInt(stats['Kills'] || 0, 10);
+    const deaths = parseInt(stats['Deaths'] || 0, 10);
+    totalKills += kills;
+    totalDeaths += deaths;
+
+    const hsPctField = parseHeadshotPercentField(stats['Headshots %']);
+    const headshotKills = parseInt(stats['Headshots'] || 0, 10);
+    let pct = hsPctField;
+    if (pct == null && kills > 0) {
+      pct = (headshotKills / kills) * 100;
+    }
+    if (pct != null) {
+      hsPercentSum += pct;
+      hsPercentCount++;
+    }
 
     validMatches++;
   }
 
   const avgKills = validMatches > 0 ? Math.round(totalKills / validMatches) : 0;
   const kd = totalDeaths > 0 ? (totalKills / totalDeaths).toFixed(2) : totalKills.toFixed(2);
-  const hsPercent = validMatches > 0 ? Math.round(totalHsPercent / validMatches) : 0;
+  const hsPercent = hsPercentCount > 0 ? Math.round(hsPercentSum / hsPercentCount) : 0;
   const winrate = participatedMatches > 0 ? Math.round((wins / participatedMatches) * 100) : 0;
 
   return { avgKills, kd, hsPercent, winrate };

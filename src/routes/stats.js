@@ -5,7 +5,7 @@
  */
 
 import express from "express";
-import { asyncHandler, MissingNicknameError, CS2DataNotFoundError } from "../middlewares/errorHandler.js";
+import { asyncHandler, MissingNicknameError, NoCS2DataError } from "../middlewares/errorHandler.js";
 import { cache } from "../utils/cache.js";
 import { config } from "../config/index.js";
 import {
@@ -62,7 +62,7 @@ router.get(
       const playerData = await getPlayerData(playerQuery);
 
       if (!hasCS2Data(playerData)) {
-        throw new CS2DataNotFoundError();
+        throw new NoCS2DataError();
       }
 
       const calculatedStats = await calculateLast30MatchesStats(

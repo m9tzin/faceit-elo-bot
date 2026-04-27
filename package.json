@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [
     "faceit",

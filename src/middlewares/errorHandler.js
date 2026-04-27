@@ -25,26 +25,24 @@ export class MissingNicknameError extends Error {
   }
 }
 
-/**
- * Custom error for CS2 data not found
- */
-export class CS2DataNotFoundError extends Error {
-  constructor(message = 'Jogador não possui stats no CS2 :(') {
-    super(message);
-    this.name = 'CS2DataNotFoundError';
-    this.statusCode = 404;
+/** Player exists but has no CS2 / stats on FACEIT */
+export class NoCS2DataError extends Error {
+  constructor() {
+    super('Jogador não possui stats no CS2 :(');
+    this.name = 'NoCS2DataError';
   }
 }
 
-/**
- * Custom error for FACEIT API failures (non-404)
- */
+/** FACEIT Data API HTTP failure (status from upstream) */
 export class FaceitApiError extends Error {
-  constructor(message = 'Erro ao buscar dados da FACEIT', statusCode = null) {
-    super(message);
+  /**
+   * @param {number} status - HTTP status from FACEIT
+   * @param {string} [message]
+   */
+  constructor(status, message) {
+    super(message || `FACEIT API status ${status}`);
     this.name = 'FaceitApiError';
-    this.statusCode = 502;
-    this.isNotFound = statusCode === 404;
+    this.status = status;
   }
 }
 
@@ -77,12 +75,23 @@ export function errorHandler(err, req, res, next) {
     return res.status(200).send(err.message);
   }
 
-  if (err instanceof CS2DataNotFoundError) {
+  if (err instanceof NoCS2DataError) {
     return res.status(200).send(err.message);
   }
 
   if (err instanceof FaceitApiError) {
-    return res.status(200).send('Erro ao buscar dados da FACEIT, tente novamente.');
+    if (err.status === 429) {
+      return res
+        .status(200)
+        .send('Muitas requisições à FACEIT. Aguarde um pouco e tente de novo.');
+    }
+    if (err.status === 401 || err.status === 403) {
+      return res.status(200).send('Erro de autenticação com a API FACEIT.');
+    }
+    if (err.status >= 500) {
+      return res.status(200).send('FACEIT temporariamente indisponível. Tente de novo em instantes.');
+    }
+    return res.status(200).send('Erro ao buscar dados da FACEIT.');
   }
 
   if (err.statusCode) {
