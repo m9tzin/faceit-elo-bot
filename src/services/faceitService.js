@@ -5,11 +5,31 @@
 
 import fetch from 'node-fetch';
 import { config } from '../config/index.js';
-import {
-  PlayerNotFoundError,
-  FaceitApiError,
-  NoCS2DataError
-} from '../middlewares/errorHandler.js';
+import { PlayerNotFoundError } from '../middlewares/errorHandler.js';
+import { matchStatsCache } from '../utils/cache.js';
+
+/**
+ * Run an array of task factories with bounded concurrency.
+ * Each factory is a () => Promise<T>. Returns results in order.
+ * @param {Array<Function>} factories - Array of () => Promise<T>
+ * @param {number} concurrency - Max parallel tasks
+ * @returns {Promise<Array<T>>}
+ */
+async function promiseAllSettledLimit(factories, concurrency) {
+  const results = new Array(factories.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < factories.length) {
+      const idx = next++;
+      results[idx] = await factories[idx]();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, factories.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
 
 /**
  * Normalize player nickname (trim whitespace only)
@@ -71,13 +91,27 @@ export async function getPlayerData(nickname) {
   const playerNick = normalizeNickname(nickname);
   const encodedNickname = encodeURIComponent(playerNick);
 
+  // Try variations: original, lowercase, uppercase, capitalize
+  const variations = [
+    playerNick,
+    playerNick.toLowerCase(),
+    playerNick.toUpperCase(),
+    playerNick.charAt(0).toUpperCase() + playerNick.slice(1).toLowerCase()
+  ];
+
+  // Remove duplicates
+  const uniqueVariations = [...new Set(variations)];
+
+  // Race all variations — return as soon as the first one succeeds (Nightbot 5s timeout)
+  const requests = uniqueVariations.map(async (variation) => {
+    const encodedNickname = encodeURIComponent(variation);
+    return faceitRequest(`/players?nickname=${encodedNickname}`);
+  });
+
   try {
-    return await faceitRequest(`/players?nickname=${encodedNickname}`);
-  } catch (error) {
-    if (error instanceof FaceitApiError && error.status === 404) {
-      throw new PlayerNotFoundError();
-    }
-    throw error;
+    return await Promise.any(requests);
+  } catch {
+    throw new PlayerNotFoundError();
   }
 }
 
@@ -114,13 +148,15 @@ export async function getPlayerHistory(playerId, limit = 30) {
  * @returns {Promise<Object|null>} Match statistics or null if error
  */
 async function getMatchStats(matchId) {
+  const cached = matchStatsCache.get(matchId);
+  if (cached) return cached;
+
   try {
-    return await faceitRequest(`/matches/${matchId}/stats`, 6000);
-  } catch (error) {
-    if (error instanceof FaceitApiError && error.status === 404) {
-      return null;
-    }
-    throw error;
+    const data = await faceitRequest(`/matches/${matchId}/stats`, 6000);
+    matchStatsCache.set(matchId, data);
+    return data;
+  } catch {
+    return null;
   }
 }
 
@@ -257,10 +293,10 @@ export async function calculateLast30MatchesStats(playerId) {
     };
   }
 
-  const matchStatsResults = await mapPool(
-    matches,
-    MATCH_STATS_CONCURRENCY,
-    (match) => getMatchStats(match.match_id)
+  // Fetch match stats with bounded concurrency (max 6 in-flight requests)
+  const matchStatsResults = await promiseAllSettledLimit(
+    matches.map(match => () => getMatchStats(match.match_id)),
+    6
   );
 
   let totalKills = 0;

@@ -53,30 +53,48 @@ router.get(
     // Generate cache key based on player
     const cacheKey = `stats:${playerQuery.toLowerCase()}`;
 
-    // Check cache first
-    const cachedData = cache.get(cacheKey, config.cache.ttl);
+    // Check cache first (stats use a longer TTL — historical data changes rarely)
+    const cachedData = cache.get(cacheKey, config.cache.statsTtl);
 
     if (cachedData) {
       return res.send(cachedData);
     }
 
-    // Get player data
-    const playerData = await getPlayerData(playerQuery);
+    // Race the actual work against a 4.5s deadline so Nightbot (5s timeout)
+    // always gets a response instead of silently dropping it.
+    const NIGHTBOT_DEADLINE_MS = 4500;
 
-    if (!hasCS2Data(playerData)) {
-      throw new NoCS2DataError();
-    }
+    const work = (async () => {
+      const playerData = await getPlayerData(playerQuery);
 
-    // Calculate statistics from last 30 matches
-    const calculatedStats = await calculateLast30MatchesStats(
-      playerData.player_id,
+      if (!hasCS2Data(playerData)) {
+        throw new Error("Dados de CS2 não encontrados para o jogador");
+      }
+
+      const calculatedStats = await calculateLast30MatchesStats(
+        playerData.player_id,
+      );
+
+      return formatStatsFromLast30(playerData, calculatedStats);
+    })();
+
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("__DEADLINE__")), NIGHTBOT_DEADLINE_MS),
     );
 
-    // Format and send response
-    const formattedStats = formatStatsFromLast30(playerData, calculatedStats);
+    let formattedStats;
+    try {
+      formattedStats = await Promise.race([work, timeout]);
+    } catch (err) {
+      if (err.message === "__DEADLINE__") {
+        return res
+          .status(200)
+          .send("Stats demorou demais, tente novamente em instantes.");
+      }
+      throw err;
+    }
 
-    // Cache the response
-    cache.set(cacheKey, formattedStats, config.cache.maxEntries);
+    cache.set(cacheKey, formattedStats);
 
     res.send(formattedStats);
   }),

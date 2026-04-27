@@ -83,6 +83,27 @@ class Cache {
 export const cache = new Cache();
 
 /**
+ * Permanent in-memory cache for FACEIT match stats.
+ * Match stats are immutable once a match is finished, so entries never expire.
+ * Uses a Map keyed by matchId.
+ */
+class MatchStatsCache {
+  constructor() {
+    this.store = new Map();
+  }
+
+  get(matchId) {
+    return this.store.get(matchId) ?? null;
+  }
+
+  set(matchId, data) {
+    this.store.set(matchId, data);
+  }
+}
+
+export const matchStatsCache = new MatchStatsCache();
+
+/**
  * Session ELO Cache
  * Stores the initial ELO for each player's session to calculate accurate ELO diff
  */
