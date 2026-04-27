@@ -37,7 +37,7 @@ async function promiseAllSettledLimit(factories, concurrency) {
  * @returns {string} Normalized nickname
  */
 function normalizeNickname(nickname) {
-  return (nickname || config.faceit.defaultPlayer).trim();
+  return (nickname || config.faceit.defaultPlayer).trim().toLowerCase();
 }
 
 /**
@@ -65,7 +65,7 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`FACEIT API returned status ${response.status}`);
+      throw new FaceitApiError(response.status);
     }
 
     return await response.json();
@@ -82,13 +82,14 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
 }
 
 /**
- * Get player data by nickname with case-insensitive fallback
- * Tries multiple variations in parallel for faster response
+ * Get player data by nickname (single Data API call; nickname normalized to lowercase).
+ * Avoids redundant parallel lookups to stay within FACEIT rate limits.
  * @param {string} [nickname] - Player nickname (optional, uses default if not provided)
  * @returns {Promise<Object>} Player data
  */
 export async function getPlayerData(nickname) {
   const playerNick = normalizeNickname(nickname);
+  const encodedNickname = encodeURIComponent(playerNick);
 
   // Try variations: original, lowercase, uppercase, capitalize
   const variations = [
@@ -123,9 +124,8 @@ export async function getPlayerStats(playerId) {
   try {
     return await faceitRequest(`/players/${playerId}/stats/cs2`);
   } catch (error) {
-    // If stats not found, it means player has no CS2 data
-    if (error.message.includes('404')) {
-      throw new Error('Jogador não possui dados de CS2');
+    if (error instanceof FaceitApiError && error.status === 404) {
+      throw new NoCS2DataError();
     }
     throw error;
   }
@@ -160,75 +160,43 @@ async function getMatchStats(matchId) {
   }
 }
 
+/** Max concurrent /matches/{id}/stats calls to reduce burst load on FACEIT */
+const MATCH_STATS_CONCURRENCY = 5;
+
 /**
- * Get match details by match ID
- * @param {string} matchId - Match ID
- * @returns {Promise<Object|null>} Match details or null if error
+ * Run async mapper over items with limited concurrency
+ * @template T, R
+ * @param {T[]} items
+ * @param {number} concurrency
+ * @param {(item: T, index: number) => Promise<R>} mapper
+ * @returns {Promise<R[]>}
  */
-async function getMatchDetails(matchId) {
-  try {
-    return await faceitRequest(`/matches/${matchId}`, 6000);
-  } catch (error) {
-    return null;
+async function mapPool(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let next = 0;
+  const n = Math.max(1, Math.min(concurrency, items.length));
+
+  async function worker() {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) break;
+      results[idx] = await mapper(items[idx], idx);
+    }
   }
+
+  await Promise.all(Array.from({ length: n }, () => worker()));
+  return results;
 }
 
 /**
- * Map external FLS matches API stats to a local structure
- * This mirrors fls-web's mapInnerApiMatchStatsToLocal
- * @param {Object} stats - Raw stats object from FLS matches API
- * @returns {Object} Normalized match stats
+ * Parse headshot percentage from FACEIT match stats (may be "48" or "48%")
+ * @param {string|undefined} raw
+ * @returns {number|null}
  */
-function mapExternalMatchStatsToLocal(stats) {
-  return {
-    matchId: stats.matchId,
-    map: stats.i1,
-    isWin: stats.teamId === stats.i2,
-    elo: stats.elo === undefined ? undefined : Number(stats.elo),
-    elo_delta:
-      stats.elo_delta === undefined ? undefined : Number(stats.elo_delta),
-    kills: Number(stats.i6 ?? 0),
-    deaths: Number(stats.i8 ?? 0),
-    assists: Number(stats.i7 ?? 0),
-    kd: Number(stats.c2 ?? 0),
-    kr: Number(stats.c3 ?? 0),
-    hs: Number(stats.i13 ?? 0),
-    hsPercent: Number(stats.c4 ?? 0),
-    date: Number(stats.date ?? 0)
-  };
-}
-
-/**
- * Get extended match stats for a player from FLS API
- * This provides ELO and ELO delta per match, matching the HUD logic
- * @param {string} playerId - Player ID
- * @returns {Promise<Array>} Array of normalized match stats
- */
-async function getExtendedMatchStats(playerId) {
-  const url = `https://fls-api.vercel.app/api/matches?id=${encodeURIComponent(playerId)}`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`FLS matches API returned status ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (!Array.isArray(data)) {
-      return [];
-    }
-
-    return data.map(mapExternalMatchStatsToLocal);
-  } catch (error) {
-    clearTimeout(timeoutId);
-    // If the external API fails, fall back gracefully
-    // by returning an empty array (no stats for today)
-    return [];
-  }
+function parseHeadshotPercentField(raw) {
+  if (raw == null || raw === '') return null;
+  const n = parseFloat(String(raw).replace('%', '').trim());
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -333,9 +301,10 @@ export async function calculateLast30MatchesStats(playerId) {
 
   let totalKills = 0;
   let totalDeaths = 0;
-  let totalHeadshots = 0;
-  let totalHeadshotKills = 0;
+  let hsPercentSum = 0;
+  let hsPercentCount = 0;
   let wins = 0;
+  let countedMatches = 0;
   let validMatches = 0;
 
   // Process each match
@@ -353,6 +322,7 @@ export async function calculateLast30MatchesStats(playerId) {
 
     if (!playerTeam) continue;
 
+    countedMatches++;
     if (match.results.winner === playerTeam) {
       wins++;
     }
@@ -372,10 +342,20 @@ export async function calculateLast30MatchesStats(playerId) {
     if (!playerData || !playerData.player_stats) continue;
 
     const stats = playerData.player_stats;
-    totalKills += parseInt(stats['Kills'] || 0);
-    totalDeaths += parseInt(stats['Deaths'] || 0);
-    totalHeadshotKills += parseInt(stats['Headshots'] || 0);
-    totalHeadshots += parseInt(stats['Headshots %'] || 0);
+    totalKills += parseInt(stats['Kills'] || 0, 10);
+    totalDeaths += parseInt(stats['Deaths'] || 0, 10);
+
+    const hsPctField = parseHeadshotPercentField(stats['Headshots %']);
+    const kills = parseInt(stats['Kills'] || 0, 10);
+    const headshotKills = parseInt(stats['Headshots'] || 0, 10);
+    let pct = hsPctField;
+    if (pct == null && kills > 0) {
+      pct = (headshotKills / kills) * 100;
+    }
+    if (pct != null) {
+      hsPercentSum += pct;
+      hsPercentCount++;
+    }
 
     validMatches++;
   }
@@ -383,8 +363,10 @@ export async function calculateLast30MatchesStats(playerId) {
   // Calculate averages
   const avgKills = validMatches > 0 ? Math.round(totalKills / validMatches) : 0;
   const kd = totalDeaths > 0 ? (totalKills / totalDeaths).toFixed(2) : totalKills.toFixed(2);
-  const hsPercent = validMatches > 0 ? Math.round(totalHeadshots / validMatches) : 0;
-  const winrate = matches.length > 0 ? Math.round((wins / matches.length) * 100) : 0;
+  const hsPercent =
+    hsPercentCount > 0 ? Math.round(hsPercentSum / hsPercentCount) : 0;
+  const winrate =
+    countedMatches > 0 ? Math.round((wins / countedMatches) * 100) : 0;
 
   return {
     avgKills,
@@ -447,7 +429,10 @@ export function processMatchStreak(matches, playerId) {
       playerTeam = 'faction2';
     }
 
-    // Check if player's team won
+    if (!playerTeam) {
+      return '?';
+    }
+
     const won = match.results.winner === playerTeam;
     return won ? 'W' : 'L';
   });

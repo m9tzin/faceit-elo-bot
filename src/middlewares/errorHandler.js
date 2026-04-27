@@ -14,6 +14,27 @@ export class PlayerNotFoundError extends Error {
   }
 }
 
+/** Player exists but has no CS2 / stats on FACEIT for this product surface */
+export class NoCS2DataError extends Error {
+  constructor() {
+    super('No CS2 data for player');
+    this.name = 'NoCS2DataError';
+  }
+}
+
+/** FACEIT Data API HTTP failure (status from upstream) */
+export class FaceitApiError extends Error {
+  /**
+   * @param {number} status - HTTP status from FACEIT
+   * @param {string} [message]
+   */
+  constructor(status, message) {
+    super(message || `FACEIT API status ${status}`);
+    this.name = 'FaceitApiError';
+    this.status = status;
+  }
+}
+
 /**
  * Async route wrapper to catch errors
  * @param {Function} fn - Async route handler
@@ -39,14 +60,28 @@ export function errorHandler(err, req, res, next) {
     return res.status(200).send(err.message);
   }
 
+  if (err instanceof NoCS2DataError) {
+    return res.status(200).send('Jogador não possui stats no CS2 :(');
+  }
+
+  if (err instanceof FaceitApiError) {
+    if (err.status === 429) {
+      return res
+        .status(200)
+        .send('Muitas requisições à FACEIT. Aguarde um pouco e tente de novo.');
+    }
+    if (err.status === 401 || err.status === 403) {
+      return res.status(200).send('Erro de autenticação com a API FACEIT.');
+    }
+    if (err.status >= 500) {
+      return res.status(200).send('FACEIT temporariamente indisponível. Tente de novo em instantes.');
+    }
+    return res.status(200).send('Erro ao buscar dados da FACEIT.');
+  }
+
   // Handle other custom errors with specific status codes
   if (err.statusCode) {
     return res.status(err.statusCode).send(err.message);
-  }
-
-  // Handle CS2 stats not found - return 200 so @Nightbot and @StreamElements bots can display the message
-  if (err.message.includes('CS2')) {
-    return res.status(200).send('Jogador não possui stats no CS2 :(');
   }
 
   // Determine error message based on error type

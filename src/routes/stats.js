@@ -5,7 +5,7 @@
  */
 
 import express from "express";
-import { asyncHandler } from "../middlewares/errorHandler.js";
+import { asyncHandler, NoCS2DataError } from "../middlewares/errorHandler.js";
 import { cache } from "../utils/cache.js";
 import { config } from "../config/index.js";
 import {
@@ -45,7 +45,7 @@ router.get(
     if (isMissing) {
       return res
         .status(200)
-        .send("Indique o nickname FACEIT (ex.: !stats s1mple)");
+        .send("Indique o nickname FACEIT (ex.: !stats togs)");
     }
 
     const playerQuery = rawPlayer;

@@ -32,7 +32,7 @@ export function cacheMiddleware(cacheKey, shouldCache = () => true) {
     // Override res.send to cache the response
     res.send = function(data) {
       if (res.statusCode === 200 && shouldCache(req)) {
-        cache.set(cacheKey, data);
+        cache.set(cacheKey, data, config.cache.maxEntries);
       }
       return originalSend(data);
     };
