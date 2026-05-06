@@ -14,7 +14,7 @@ import { matchStatsCache } from '../utils/cache.js';
  * @returns {string} Normalized nickname
  */
 function normalizeNickname(nickname) {
-  return (nickname || config.faceit.defaultPlayer).trim().toLowerCase();
+  return (nickname || config.faceit.defaultPlayer).trim();
 }
 
 /**
