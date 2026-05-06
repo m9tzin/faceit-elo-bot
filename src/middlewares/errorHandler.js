@@ -14,10 +14,21 @@ export class PlayerNotFoundError extends Error {
   }
 }
 
-/** Player exists but has no CS2 / stats on FACEIT for this product surface */
+/**
+ * Custom error class for missing player nickname
+ */
+export class MissingNicknameError extends Error {
+  constructor(message = 'Indique o nickname FACEIT (ex.: !stats s1mple)') {
+    super(message);
+    this.name = 'MissingNicknameError';
+    this.statusCode = 400;
+  }
+}
+
+/** Player exists but has no CS2 / stats on FACEIT */
 export class NoCS2DataError extends Error {
   constructor() {
-    super('No CS2 data for player');
+    super('Jogador não possui stats no CS2 :(');
     this.name = 'NoCS2DataError';
   }
 }
@@ -48,20 +59,24 @@ export function asyncHandler(fn) {
 
 /**
  * Global error handler middleware
- * Should be added last in the middleware chain
+ * All known error types return HTTP 200 so Nightbot/StreamElements can display the text.
  */
 export function errorHandler(err, req, res, next) {
   console.error('Error:', err.message);
-  console.error('Stack:', err.stack);
+  if (!(err instanceof PlayerNotFoundError || err instanceof MissingNicknameError)) {
+    console.error('Stack:', err.stack);
+  }
 
-  // Handling custom errors with specific status codes
-  // Handle PlayerNotFoundError (404) - return 200 so @Nightbot and @StreamElements bots can display the message
   if (err instanceof PlayerNotFoundError) {
     return res.status(200).send(err.message);
   }
 
+  if (err instanceof MissingNicknameError) {
+    return res.status(200).send(err.message);
+  }
+
   if (err instanceof NoCS2DataError) {
-    return res.status(200).send('Jogador não possui stats no CS2 :(');
+    return res.status(200).send(err.message);
   }
 
   if (err instanceof FaceitApiError) {
@@ -79,20 +94,9 @@ export function errorHandler(err, req, res, next) {
     return res.status(200).send('Erro ao buscar dados da FACEIT.');
   }
 
-  // Handle other custom errors with specific status codes
   if (err.statusCode) {
     return res.status(err.statusCode).send(err.message);
   }
 
-  // Determine error message based on error type
-  let message = 'Erro ao processar requisição';
-  
-  if (err.message.includes('player')) {
-    message = 'Jogador não encontrado';
-  } else if (err.message.includes('API')) {
-    message = 'Erro ao buscar dados da FACEIT';
-  }
-
-  res.status(500).send(message);
+  res.status(500).send('Erro ao processar requisição');
 }
-

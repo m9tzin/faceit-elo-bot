@@ -21,7 +21,8 @@ export const config = {
   // Cache configuration
   cache: {
     ttl: 30 * 1000, // 30 seconds (elo, streak)
-    statsTtl: 3 * 60 * 1000 // 3 minutes (stats — historical data changes rarely)
+    statsTtl: 3 * 60 * 1000, // 3 minutes (stats — historical data changes rarely)
+    maxEntries: 200 // max distinct cache keys before LRU eviction
   }
 };
 

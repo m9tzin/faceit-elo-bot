@@ -5,7 +5,7 @@
  */
 
 import express from "express";
-import { asyncHandler, NoCS2DataError } from "../middlewares/errorHandler.js";
+import { asyncHandler, MissingNicknameError, NoCS2DataError } from "../middlewares/errorHandler.js";
 import { cache } from "../utils/cache.js";
 import { config } from "../config/index.js";
 import {
@@ -17,6 +17,18 @@ import {
 
 const router = express.Router();
 
+const NIGHTBOT_PLACEHOLDERS = ["null", "undefined", "$(1)", "$(2)"];
+
+function getStringParam(p) {
+  if (typeof p === "string") return p.trim();
+  if (Array.isArray(p)) return p[0]?.trim() ?? null;
+  return null;
+}
+
+function isPlaceholder(value) {
+  return !value || NIGHTBOT_PLACEHOLDERS.includes(value.toLowerCase());
+}
+
 /**
  * GET /stats?player=nickname or ?nick=nickname
  * Returns comprehensive player statistics
@@ -25,50 +37,32 @@ const router = express.Router();
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const getStringParam = (p) =>
-      typeof p === "string"
-        ? p.trim()
-        : Array.isArray(p)
-          ? (p[0]?.trim() ?? null)
-          : null;
     const rawPlayer =
       getStringParam(req.query.player) ||
       getStringParam(req.query.nick) ||
       null;
 
-    // Nightbot expands `$(1)` para a string literal "null" quando o usuário
-    // digita apenas `!stats` sem argumento; tratamos "null"/"undefined" como
-    // ausência de nickname para evitar consultar um jogador com esse apelido.
-    const isMissing =
-      !rawPlayer || ["null", "undefined"].includes(rawPlayer.toLowerCase());
-
-    if (isMissing) {
-      return res
-        .status(200)
-        .send("Indique o nickname FACEIT (ex.: !stats togs)");
+    if (isPlaceholder(rawPlayer)) {
+      throw new MissingNicknameError();
     }
 
     const playerQuery = rawPlayer;
 
-    // Generate cache key based on player
     const cacheKey = `stats:${playerQuery.toLowerCase()}`;
 
-    // Check cache first (stats use a longer TTL — historical data changes rarely)
     const cachedData = cache.get(cacheKey, config.cache.statsTtl);
 
     if (cachedData) {
       return res.send(cachedData);
     }
 
-    // Race the actual work against a 4.5s deadline so Nightbot (5s timeout)
-    // always gets a response instead of silently dropping it.
     const NIGHTBOT_DEADLINE_MS = 4500;
 
     const work = (async () => {
       const playerData = await getPlayerData(playerQuery);
 
       if (!hasCS2Data(playerData)) {
-        throw new Error("Dados de CS2 não encontrados para o jogador");
+        throw new NoCS2DataError();
       }
 
       const calculatedStats = await calculateLast30MatchesStats(

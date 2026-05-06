@@ -5,39 +5,16 @@
 
 import fetch from 'node-fetch';
 import { config } from '../config/index.js';
-import { PlayerNotFoundError } from '../middlewares/errorHandler.js';
+import { PlayerNotFoundError, FaceitApiError } from '../middlewares/errorHandler.js';
 import { matchStatsCache } from '../utils/cache.js';
 
 /**
- * Run an array of task factories with bounded concurrency.
- * Each factory is a () => Promise<T>. Returns results in order.
- * @param {Array<Function>} factories - Array of () => Promise<T>
- * @param {number} concurrency - Max parallel tasks
- * @returns {Promise<Array<T>>}
- */
-async function promiseAllSettledLimit(factories, concurrency) {
-  const results = new Array(factories.length);
-  let next = 0;
-
-  async function worker() {
-    while (next < factories.length) {
-      const idx = next++;
-      results[idx] = await factories[idx]();
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, factories.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
-
-/**
- * Normalize player nickname (trim whitespace only)
+ * Normalize player nickname (trim whitespace, lowercase)
  * @param {string} nickname - Player nickname
  * @returns {string} Normalized nickname
  */
 function normalizeNickname(nickname) {
-  return (nickname || config.faceit.defaultPlayer).trim().toLowerCase();
+  return (nickname || config.faceit.defaultPlayer).trim();
 }
 
 /**
@@ -49,7 +26,6 @@ function normalizeNickname(nickname) {
 async function faceitRequest(endpoint, timeoutMs = 4000) {
   const url = `${config.faceit.baseUrl}${endpoint}`;
 
-  // Create AbortController for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -72,9 +48,8 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
   } catch (error) {
     clearTimeout(timeoutId);
 
-    // Handle timeout errors
     if (error.name === 'AbortError') {
-      throw new Error('FACEIT API timeout');
+      throw new FaceitApiError(0, 'FACEIT API timeout');
     }
 
     throw error;
@@ -82,16 +57,14 @@ async function faceitRequest(endpoint, timeoutMs = 4000) {
 }
 
 /**
- * Get player data by nickname (single Data API call; nickname normalized to lowercase).
- * Avoids redundant parallel lookups to stay within FACEIT rate limits.
+ * Get player data by nickname with case-insensitive fallback
+ * Tries multiple variations in parallel for faster response
  * @param {string} [nickname] - Player nickname (optional, uses default if not provided)
  * @returns {Promise<Object>} Player data
  */
 export async function getPlayerData(nickname) {
   const playerNick = normalizeNickname(nickname);
-  const encodedNickname = encodeURIComponent(playerNick);
 
-  // Try variations: original, lowercase, uppercase, capitalize
   const variations = [
     playerNick,
     playerNick.toLowerCase(),
@@ -99,10 +72,8 @@ export async function getPlayerData(nickname) {
     playerNick.charAt(0).toUpperCase() + playerNick.slice(1).toLowerCase()
   ];
 
-  // Remove duplicates
   const uniqueVariations = [...new Set(variations)];
 
-  // Race all variations — return as soon as the first one succeeds (Nightbot 5s timeout)
   const requests = uniqueVariations.map(async (variation) => {
     const encodedNickname = encodeURIComponent(variation);
     return faceitRequest(`/players?nickname=${encodedNickname}`);
@@ -110,24 +81,13 @@ export async function getPlayerData(nickname) {
 
   try {
     return await Promise.any(requests);
-  } catch {
-    throw new PlayerNotFoundError();
-  }
-}
-
-/**
- * Get player statistics for CS2
- * @param {string} playerId - Player ID
- * @returns {Promise<Object>} Player statistics
- */
-export async function getPlayerStats(playerId) {
-  try {
-    return await faceitRequest(`/players/${playerId}/stats/cs2`);
-  } catch (error) {
-    if (error instanceof FaceitApiError && error.status === 404) {
-      throw new NoCS2DataError();
+  } catch (aggregateError) {
+    const causes = aggregateError.errors || [];
+    const apiError = causes.find(e => e instanceof FaceitApiError && e.status !== 404);
+    if (apiError) {
+      throw apiError;
     }
-    throw error;
+    throw new PlayerNotFoundError();
   }
 }
 
@@ -218,60 +178,55 @@ function getTodayStartingPointDate() {
 }
 
 /**
- * Calculate today's W/L using the same logic as fls-web HUD
- * - Defines "today" as starting at 07:00 local time
+ * Safely extract the player's team from a match object.
+ * @param {Object} match - Match object from FACEIT history
  * @param {string} playerId - Player ID
- * @param {number} currentElo - Current ELO
+ * @returns {string|null} 'faction1', 'faction2', or null
+ */
+function findPlayerTeam(match, playerId) {
+  const teams = match?.teams;
+  if (!teams) return null;
+
+  if (teams.faction1?.players?.some(p => p.player_id === playerId)) {
+    return 'faction1';
+  }
+  if (teams.faction2?.players?.some(p => p.player_id === playerId)) {
+    return 'faction2';
+  }
+  return null;
+}
+
+/**
+ * Calculate today's W/L using the same logic as fls-web HUD
+ * @param {string} playerId - Player ID
  * @returns {Promise<Object>} Stats: wins, losses
  */
-export async function calculateTodayStats(playerId, currentElo) {
-  // Get last 30 matches using native Faceit API
+export async function calculateTodayStats(playerId) {
   const historyData = await getPlayerHistory(playerId, 30);
   const matches = historyData.items;
 
   if (!matches || matches.length === 0) {
-    return {
-      wins: 0,
-      losses: 0
-    };
+    return { wins: 0, losses: 0 };
   }
 
-  // Filter matches that belong to "today"
   const startingPoint = getTodayStartingPointDate();
-
-  // started_at is in UNIX seconds, startingPoint is in milliseconds
   const todayMatches = matches.filter(match => (match.started_at * 1000) > startingPoint);
 
-  // Compute W/L from today's matches
   let wins = 0;
   let losses = 0;
 
   for (const match of todayMatches) {
-    const teams = match.teams;
-    let playerTeam = null;
-
-    // Find which team the player was on
-    if (teams.faction1.players.some(p => p.player_id === playerId)) {
-      playerTeam = 'faction1';
-    } else if (teams.faction2.players.some(p => p.player_id === playerId)) {
-      playerTeam = 'faction2';
-    }
-
+    const playerTeam = findPlayerTeam(match, playerId);
     if (!playerTeam) continue;
 
-    const won = match.results.winner === playerTeam;
-
-    if (won) {
+    if (match.results?.winner === playerTeam) {
       wins += 1;
     } else {
       losses += 1;
     }
   }
 
-  return {
-    wins,
-    losses
-  };
+  return { wins, losses };
 }
 
 /**
@@ -280,23 +235,17 @@ export async function calculateTodayStats(playerId, currentElo) {
  * @returns {Promise<Object>} Calculated statistics
  */
 export async function calculateLast30MatchesStats(playerId) {
-  // Get last 30 matches
   const historyData = await getPlayerHistory(playerId, 30);
   const matches = historyData.items;
 
   if (!matches || matches.length === 0) {
-    return {
-      avgKills: 0,
-      kd: 0,
-      hsPercent: 0,
-      winrate: 0
-    };
+    return { avgKills: 0, kd: 0, hsPercent: 0, winrate: 0 };
   }
 
-  // Fetch match stats with bounded concurrency (max 6 in-flight requests)
-  const matchStatsResults = await promiseAllSettledLimit(
-    matches.map(match => () => getMatchStats(match.match_id)),
-    6
+  const matchStatsResults = await mapPool(
+    matches,
+    MATCH_STATS_CONCURRENCY,
+    (match) => getMatchStats(match.match_id)
   );
 
   let totalKills = 0;
@@ -304,49 +253,40 @@ export async function calculateLast30MatchesStats(playerId) {
   let hsPercentSum = 0;
   let hsPercentCount = 0;
   let wins = 0;
-  let countedMatches = 0;
+  let participatedMatches = 0;
   let validMatches = 0;
 
-  // Process each match
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
     const matchStats = matchStatsResults[i];
 
-    // Win/Loss from history only (do not depend on /matches/{id}/stats)
-    let playerTeam = null;
-    if (match.teams.faction1.players.some(p => p.player_id === playerId)) {
-      playerTeam = 'faction1';
-    } else if (match.teams.faction2.players.some(p => p.player_id === playerId)) {
-      playerTeam = 'faction2';
-    }
-
+    const playerTeam = findPlayerTeam(match, playerId);
     if (!playerTeam) continue;
 
-    countedMatches++;
-    if (match.results.winner === playerTeam) {
+    participatedMatches++;
+
+    if (match.results?.winner === playerTeam) {
       wins++;
     }
 
-    if (!matchStats || !matchStats.rounds || matchStats.rounds.length === 0) {
-      continue;
-    }
+    if (!matchStats?.rounds?.length) continue;
 
-    // Get player stats from the match
-    const roundData = matchStats.rounds[0]; // Use first round to get player stats
-    if (!roundData || !roundData.teams) continue;
+    const roundData = matchStats.rounds[0];
+    if (!roundData?.teams) continue;
 
-    const teamData = roundData.teams.find(t => t.team_id === match.teams[playerTeam].team_id);
-    if (!teamData || !teamData.players) continue;
+    const teamData = roundData.teams.find(t => t.team_id === match.teams[playerTeam]?.team_id);
+    if (!teamData?.players) continue;
 
     const playerData = teamData.players.find(p => p.player_id === playerId);
-    if (!playerData || !playerData.player_stats) continue;
+    if (!playerData?.player_stats) continue;
 
     const stats = playerData.player_stats;
-    totalKills += parseInt(stats['Kills'] || 0, 10);
-    totalDeaths += parseInt(stats['Deaths'] || 0, 10);
+    const kills = parseInt(stats['Kills'] || 0, 10);
+    const deaths = parseInt(stats['Deaths'] || 0, 10);
+    totalKills += kills;
+    totalDeaths += deaths;
 
     const hsPctField = parseHeadshotPercentField(stats['Headshots %']);
-    const kills = parseInt(stats['Kills'] || 0, 10);
     const headshotKills = parseInt(stats['Headshots'] || 0, 10);
     let pct = hsPctField;
     if (pct == null && kills > 0) {
@@ -360,20 +300,12 @@ export async function calculateLast30MatchesStats(playerId) {
     validMatches++;
   }
 
-  // Calculate averages
   const avgKills = validMatches > 0 ? Math.round(totalKills / validMatches) : 0;
   const kd = totalDeaths > 0 ? (totalKills / totalDeaths).toFixed(2) : totalKills.toFixed(2);
-  const hsPercent =
-    hsPercentCount > 0 ? Math.round(hsPercentSum / hsPercentCount) : 0;
-  const winrate =
-    countedMatches > 0 ? Math.round((wins / countedMatches) * 100) : 0;
+  const hsPercent = hsPercentCount > 0 ? Math.round(hsPercentSum / hsPercentCount) : 0;
+  const winrate = participatedMatches > 0 ? Math.round((wins / participatedMatches) * 100) : 0;
 
-  return {
-    avgKills,
-    kd,
-    hsPercent,
-    winrate
-  };
+  return { avgKills, kd, hsPercent, winrate };
 }
 
 /**
@@ -382,7 +314,7 @@ export async function calculateLast30MatchesStats(playerId) {
  * @returns {boolean} True if player has CS2 data
  */
 export function hasCS2Data(playerData) {
-  return !!(playerData?.games?.cs2?.faceit_elo);
+  return playerData?.games?.cs2?.faceit_elo != null;
 }
 
 /**
@@ -393,8 +325,9 @@ export function hasCS2Data(playerData) {
  * @returns {string} Formatted statistics string
  */
 export function formatStatsFromLast30(playerData, calculatedStats) {
-  const elo = playerData.games.cs2.faceit_elo || 0;
-  const level = playerData.games.cs2.skill_level || 0;
+  const cs2 = playerData.games?.cs2;
+  const elo = cs2?.faceit_elo ?? 0;
+  const level = cs2?.skill_level ?? 0;
 
   return [
     `${playerData.nickname}:`,
@@ -418,25 +351,18 @@ export function processMatchStreak(matches, playerId) {
     return 'Nenhuma partida encontrada';
   }
 
-  const results = matches.map(match => {
-    const teams = match.teams;
-    let playerTeam = null;
+  const results = [];
+  for (const match of matches) {
+    const playerTeam = findPlayerTeam(match, playerId);
+    if (!playerTeam) continue;
 
-    // Find which team the player was on
-    if (teams.faction1.players.some(p => p.player_id === playerId)) {
-      playerTeam = 'faction1';
-    } else if (teams.faction2.players.some(p => p.player_id === playerId)) {
-      playerTeam = 'faction2';
-    }
+    const won = match.results?.winner === playerTeam;
+    results.push(won ? 'W' : 'L');
+  }
 
-    if (!playerTeam) {
-      return '?';
-    }
+  if (results.length === 0) {
+    return 'Nenhuma partida encontrada';
+  }
 
-    const won = match.results.winner === playerTeam;
-    return won ? 'W' : 'L';
-  });
-
-  return `Últimas 10 (mais recente → antiga): ${results.join(' ')}`;
+  return `Últimas ${results.length} (mais recente → antiga): ${results.join(' ')}`;
 }
-
