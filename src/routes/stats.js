@@ -88,7 +88,7 @@ router.get(
       throw err;
     }
 
-    cache.set(cacheKey, formattedStats);
+    cache.set(cacheKey, formattedStats, config.cache.maxEntries);
 
     res.send(formattedStats);
   }),
